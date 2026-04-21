@@ -678,8 +678,8 @@
         <div><label>Existing Roth IRA</label><input id="roth" type="number" value="0" /></div>
       </div>
       <div class="row2">
-        <div><label title="Cost basis in taxable brokerage. Unrealized gain = balance − basis. Withdrawals realize pro-rata cap gain at LTCG + NIIT + NJ rates.">Taxable cost basis</label><input id="taxable_basis" type="number" value="0" /></div>
-        <div><label title="After first death, spend is multiplied by this %. 80% is a common assumption — one household but not quite half the expenses.">Survivor spend (% of joint)</label><input id="survivor_spend_pct" type="number" value="100" /></div>
+        <div><label title="Cost basis in taxable brokerage. Unrealized gain = balance − basis. Withdrawals realize pro-rata cap gain at LTCG + NIIT + NJ rates.">Taxable cost basis</label><input id="taxable_basis" type="number" value="900000" /></div>
+        <div><label title="After first death, spend is multiplied by this %. 80% is a common assumption — one household but not quite half the expenses.">Survivor spend (% of joint)</label><input id="survivor_spend_pct" type="number" value="80" /></div>
       </div>
     </div>
   </details>
@@ -704,9 +704,9 @@
     <summary>Taxable-account yields (% of balance)</summary>
     <div class="details-body">
       <div class="row3">
-        <div><label>Ordinary interest %</label><input id="yld_int" type="number" step="0.1" value="1.26" /></div>
-        <div><label>Qualified div %</label><input id="yld_qdiv" type="number" step="0.1" value="0.77" /></div>
-        <div><label>Muni (tax-exempt) %</label><input id="yld_muni" type="number" step="0.1" value="0.52" /></div>
+        <div><label>Ordinary interest %</label><input id="yld_int" type="number" step="0.1" value="1.0" /></div>
+        <div><label>Qualified div %</label><input id="yld_qdiv" type="number" step="0.1" value="1.5" /></div>
+        <div><label>Muni (tax-exempt) %</label><input id="yld_muni" type="number" step="0.1" value="0.5" /></div>
       </div>
     </div>
   </details>
@@ -721,7 +721,7 @@
       </div>
       <div class="row2">
         <div><label>Inflation %</label><input id="infl" type="number" step="0.1" value="2.5" /></div>
-        <div><label>Annual spend (post-tax, $)</label><input id="spend" type="number" value="75000" /></div>
+        <div><label>Annual spend (post-tax, $)</label><input id="spend" type="number" value="95000" /></div>
       </div>
       <div class="muted" style="margin-top:4px;">Defaults: IRA and Roth both 7.5% (equity-like, no asset-location arbitrage assumed), Taxable 6% (tax-efficient balanced, drag from dividends/interest). Edit to test asset-location effect.</div>
     </div>
@@ -747,11 +747,11 @@
     <div class="details-body">
       <label>Strategy</label>
       <select id="strategy">
-        <option value="none">No conversions (baseline)</option>
+        <option value="none" selected>No conversions (baseline)</option>
         <option value="12">Fill to top of 12% federal</option>
         <option value="22">Fill to top of 22% federal</option>
         <option value="24half">Fill to ½-way through 24% (~$308K taxable, mid-bracket)</option>
-        <option value="24" selected>Fill to top of 24% federal</option>
+        <option value="24">Fill to top of 24% federal</option>
         <option value="irmaa">Stay under IRMAA MAGI cap (user-set, default $300K)</option>
         <option value="32">Fill to top of 32% federal (aggressive)</option>
         <option value="nj100">Stay ≤ $100K NJ income (preserve pension exclusion)</option>
@@ -1529,7 +1529,7 @@ function bracketClass(rate) {
 }
 
 let chartBal, chartTax;
-let currentStrategy = '24';
+let currentStrategy = 'none';
 let displayMode = 'real'; // 'real' | 'nominal'
 
 function renderYearTable(sim) {

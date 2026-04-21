@@ -15,7 +15,7 @@ Household context baked into defaults:
 
 ## Tax logic implemented
 
-Federal 2026 MFJ and Single brackets (TCJA + OBBBA assumed sunset/renewal as of model date). NJ tax with pension exclusion cliff ($100K MAGI hard phaseout) and IRA basis pro-rata recovery. SS provisional income formula for federal taxability (NJ doesn't tax SS). OBBBA senior deduction ($6K/filer age 65+, 2025–2028, 6% phaseout above $150K MFJ MAGI — MAGI = AGI + muni interest). NIIT (3.8% on investment income above $250K MFJ / $200K single). IRMAA tiers ($212K / $266K / $334K / $400K / $750K MFJ for 2026). Qualified dividends stacked at LTCG preferential rates (0% / 15% / 20%) on top of ordinary income via `federalTaxSplit()`. SECURE Act 10-year rule for inherited IRAs post-2020. Spousal rollover at first death, survivor filing single thereafter (widow tax trap).
+Federal 2026 MFJ and Single brackets (TCJA + OBBBA assumed sunset/renewal as of model date). NJ tax with pension exclusion cliff ($100K MAGI hard phaseout) and IRA basis pro-rata recovery. SS provisional income formula for federal taxability (NJ doesn't tax SS). OBBBA senior deduction ($6K/filer age 65+, 2025–2028, 6% phaseout above $150K MFJ MAGI — MAGI = AGI + muni interest). NIIT (3.8% on investment income above $250K MFJ / $200K single). IRMAA tiers ($218K / $274K / $342K / $410K / $750K MFJ for 2026, Part B + Part D combined). Qualified dividends stacked at LTCG preferential rates (0% / 15% / 20%) on top of ordinary income via `federalTaxSplit()`. SECURE Act 10-year rule for inherited IRAs post-2020. Spousal rollover at first death, survivor filing single thereafter (widow tax trap).
 
 ## Architecture inside the HTML
 
@@ -31,8 +31,10 @@ All JS is in one `<script>` block. Key functions:
 - `irmaaSurcharge(magi, status, year)` — tiered lookup
 - `niit(agi, invIncome, status)` — 3.8% on lesser of
 - `rmd(balance, age)` — Uniform Lifetime Table
-- `simulate(inp, strategy)` — year-by-year engine, returns totals + series for charts
-- `run()` — entry point, runs chosen strategy + baseline, updates DOM and charts
+- `simulate(inp, strategy, returnOverrides?)` — year-by-year engine, returns totals + series for charts. Optional 3rd arg is an array keyed by year index (0 = startYear) with `{ira, roth, tax}` per-year return overrides; used by the sensitivity panel to stress-test bad sequences. Pass `null`/omit to use flat `inp.retIRA / retRoth / retTax`.
+- `renderComparison(results)` — renders the strategy-ranking table; rows are clickable (sets `currentStrategy` and re-runs), active row highlighted, winner starred
+- `renderSensitivity(inp, activeStrategy)` — runs 5 return-scale scenarios (0.67× – 1.33×) and 5 sequence-of-returns scenarios (crash → boom, applied to years 0–4 only), renders a table showing net real + Δ vs no-conv for each
+- `run()` — entry point, runs all strategies, picks the user-selected one, updates DOM and all charts + the comparison + sensitivity tables
 
 Strategy is a string: `none / 12 / 22 / 24half / 24 / irmaa / 32 / nj100 / custom`.
 
@@ -61,27 +63,55 @@ Display mode (`displayMode`): `real` or `nominal`. Real is inflation-adjusted to
 
 4. **OBBBA phaseout uses MAGI, not AGI.** `const magi = agi + muni; obbbaSeniorDeduction(magi, ...);` — AGI alone is wrong for this deduction.
 
+## Cost basis tracking (taxable account)
+
+As of the April 2026 audit, taxable-brokerage cost basis IS tracked. Inputs: `taxable_basis` (starting basis at beginning of 2026). Each year:
+
+1. Unrealized-gain fraction = `max(0, balance − basis) / balance`
+2. Shortfall after inflows = `max(0, tax + spend − wages − SS − RMD)`
+3. Realized cap gain = `shortfall × unrealized_pct`
+4. Cap gain is iterated (4 passes) because it's circular: tax depends on cap gain, cap gain depends on withdrawal which depends on tax. Converges within $5.
+5. Cap gain feeds `federalTaxSplit(ordinary, qdiv+capGain, status)` at LTCG rates, is added to AGI for IRMAA/NIIT/OBBBA, and added to NJ `njGross` as ordinary NJ income (NJ has no preferential LTCG rate but does NOT get pension exclusion on cap gain).
+6. End-of-year basis update: `basis += yieldsReinvested + wages + SS + RMD − (outflows − capGain)`, clamped to `[0, balance]`.
+
+The net impact of turning basis tracking on: baseline drops by ~$50–100K at +10, Fill 24% drops by ~$100K. Ranking unchanged because the cap-gain drag applies to all strategies roughly equally.
+
+## Widow spending adjustment
+
+`survivor_spend_pct` input (default 80%) multiplies nominal spend when filing status flips to Single. Raises baseline by ~$60K at +10 and shifts tax-efficiency slightly in favor of the no-conversion path (more uncompounded money sits in Roth/taxable post-first-death). Net ranking unchanged.
+
+## Sensitivity panel
+
+Below the year-by-year table, `renderSensitivity()` runs five scaled-return scenarios (`retIRA × 0.67 / 0.83 / 1.00 / 1.17 / 1.33`, same scale applied to Roth and taxable) for the currently-selected strategy vs no-conversion baseline. Below that, five sequence-of-returns scenarios apply a per-year override ONLY to years 0–4 (the "crucial" retirement window), then let default returns resume. This isolates whether the conversion advantage is robust to a bad first few years.
+
+Validated April 2026: Fill 24% wins in every scenario. Smallest margin: $503K (5-year -10% crash). Largest: $5M (1.33× return scale). No reversals — the conversion strategy is robust.
+
 ## Known remaining caveats (NOT bugs — documented limitations)
 
 - Std deduction uses TCJA baseline (~$30,750 MFJ 2026); OBBBA enhancement (~$32,300) not applied
-- Cost basis in taxable account not tracked — conversion-tax liquidations treated as basis-neutral
 - Heir inherited-IRA growth uses `retIRA` regardless of heir's actual allocation
-- Spending held flat post-first-death (no widow adjustment)
 - Conversions assumed Jan 1 (full year of Roth compounding)
 - SS COLA = CPI (model uses one `infl` rate for everything)
+- Cap gain iteration is fixed at 4 passes; may slightly under-realize in extreme years (error < $5 on the withdrawal, invisible on totals)
 
 ## How to verify changes
 
-`verify_html.js` extracts the JS from the HTML, stubs DOM, and runs `simulate()` across all strategies × 3 allocation policies plus a "Dad dies at 75" stress test. Expected baseline net real at +10: ~$12.69M. Expected winner: Fill 24% at ~$14.67M.
-
-Run after any non-trivial edit:
+Three-tier test setup, all pointing at the live HTML (each extracts the `<script>` block, stubs a minimal DOM, then eval's the code). Run all three after any non-trivial edit:
 
 ```bash
 cd ~/workspace/claude_projects/roth_conversion
-node verify_html.js
+node unit_tests.js && node sanity_check.js && node verify_html.js
 ```
 
-If the baseline moves by more than ~$50K from $12.69M, or if the ranking of the top-4 strategies reorders in a way that can't be traced to the edit, something broke. Find it before returning to the user.
+1. **`unit_tests.js`** — ~48 assertions on the pure tax helpers in isolation: `bracketTax`/`topBracket`, `federalTax` (MFJ + Single, with and without inflation), `federalTaxSplit` (LTCG stacking across 0%/15%/20% bands, including straddle cases), `njTax`, `njPensionExclusion` cliff, `taxableSocialSecurity` provisional-income ramp (including muni), `obbbaSeniorDeduction` phaseout + 2028 sunset, `irmaaTier` tiers 0–5 for MFJ and Single, and `inflate`. Hand-computable inputs — if one of these fails, the tax math itself is wrong, before you even get to simulation state.
+
+2. **`sanity_check.js`** — ~25 invariants over a full `simulate()` run with the config.js defaults: `fedOrdTax + fedLtcgTax == fedTax` every year, `ordTaxable + qdivStack == fedTaxable`, `topFedRate` reflects ordinary-only bracket, IRMAA tier thresholds match the 2026 table, AGI reconciles from components, Fill-24% strategy stays within the 24% bracket, post-conversion years have LTCG in 0% bracket, Single-filer bracket labels correct, widow spend = 80% of MFJ, year-0 capGain = $0 when basis = balance, `state_tax='none'` produces `totalNJTax == 0`, and pinned dollar totals (baseline $12,742,277 and Fill 24% $14,545,957, tolerance $1,000).
+
+3. **`verify_html.js`** — regression on totals across all strategies × 3 allocation policies, plus a "Dad dies at 75" stress test and a no-state-tax (FL) run. Expected baseline net real at +10 (with cost basis + widow spend + 2026 IRMAA Part B+D ON): ~$12.74M. Expected winner: Fill 24% at ~$14.55M. FL scenario `totalNJTax` must be exactly $0.
+
+If unit tests fail, the tax helpers themselves regressed — fix that first before debugging simulation behavior. If unit tests pass but sanity/verify fail, the bug is in the simulation loop (cash flow, basis tracking, year-by-year stacking) not in the pure helpers. If the baseline moves by more than ~$50K from $12.74M, or if the ranking of the top-4 strategies reorders in a way that can't be traced to the edit, something broke. Find it before returning to the user.
+
+When adding a new pure helper, add unit tests. When adding a new simulation invariant (e.g., a new column that should decompose cleanly), add a sanity check. When changing tax-law constants that shift totals, update the pinned numbers in both `sanity_check.js` and this file.
 
 ## State tax toggle
 

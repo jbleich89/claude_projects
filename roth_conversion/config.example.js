@@ -31,7 +31,11 @@ window.PLANNER_CONFIG = {
   mom_ira: 500000,          // Spouse B 401(k) or Traditional IRA
   taxable: 1500000,         // joint taxable brokerage
   roth: 0,                  // existing Roth IRA
+  taxable_basis: 1000000,   // cost basis in taxable brokerage (unrealized gain = balance − basis)
   dad_nj_basis: 0,          // NJ after-tax basis in Traditional IRA (if NJ resident)
+
+  // --- Spending behavior --------------------------------------------------
+  survivor_spend_pct: 80,   // spend × this % after first death (typical 70–80%)
 
   // --- Taxable-account yields (% of balance/yr) --------------------------
   yld_int: 1.26,            // ordinary interest
@@ -61,6 +65,6 @@ window.PLANNER_CONFIG = {
   //                        '32', 'nj100' (NJ only), 'custom'
   strategy: '24',
   custom_amt: 80000,        // used only if strategy === 'custom'
-  irmaa_cap: 300000,        // MAGI cap if strategy === 'irmaa'
+  irmaa_cap: 342000,        // MAGI cap if strategy === 'irmaa' — $342K = top of 2026 MFJ tier 2
   conv_source: 'dad_first', // 'dad_first' | 'mom_first' | 'prorata'
 };

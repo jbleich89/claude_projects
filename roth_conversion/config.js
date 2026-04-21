@@ -24,7 +24,11 @@ window.PLANNER_CONFIG = {
   mom_ira: 700000,
   taxable: 3250000,
   roth: 0,
+  taxable_basis: 2500000,   // cost basis in taxable brokerage
   dad_nj_basis: 30000,
+
+  // Spending
+  survivor_spend_pct: 80,   // spend drops to 80% after first death
 
   // Taxable-account yields (%)
   yld_int: 1.26,
@@ -50,6 +54,6 @@ window.PLANNER_CONFIG = {
   // Strategy defaults
   strategy: '24',
   custom_amt: 80000,
-  irmaa_cap: 300000,
+  irmaa_cap: 342000,
   conv_source: 'dad_first',
 };

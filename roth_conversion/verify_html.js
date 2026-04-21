@@ -10,10 +10,11 @@ const defaults = {
   dad_death: 90, mom_death: 90, dad_wage: 70000, mom_wage_2026: 22000,
   dad_ss: 40000, mom_ss: 22000, dad_ss_year: 2027, mom_ss_year: 2026,
   dad_ira: 350000, mom_ira: 700000, taxable: 3250000, roth: 0,
+  taxable_basis: 2500000, survivor_spend_pct: 80,
   dad_nj_basis: 30000, yld_int: 1.26, yld_qdiv: 0.77, yld_muni: 0.52,
   ret_ira: 7.5, ret_roth: 7.5, ret_tax: 6.0, infl: 2.5, spend: 75000,
   heir_a_share: 50, heir_b_share: 50, heir_a_rate: 47.75, heir_b_rate: 30.37,
-  strategy: '24', custom_amt: 0, irmaa_cap: 300000,
+  strategy: '24', custom_amt: 0, irmaa_cap: 342000,
   conv_source: 'dad_first', state_tax: 'NJ'
 };
 
