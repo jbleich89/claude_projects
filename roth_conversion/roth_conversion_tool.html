@@ -1,0 +1,1102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Roth Conversion Planner — NJ, MFJ</title>
+<!-- Optional personal config: create a config.js in this folder to override the demo defaults below. -->
+<script src="config.js" onerror="/* config.js missing is fine — demo defaults will be used */"></script>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    margin: 0; padding: 16px; background: #f8f9fb; color: #1a1a1a;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  h2 { font-size: 15px; margin: 18px 0 8px; color: #333; }
+  h3 { font-size: 13px; margin: 12px 0 6px; color: #555; text-transform: uppercase; letter-spacing: 0.4px; }
+  .muted { color: #666; font-size: 12px; }
+  .layout { display: grid; grid-template-columns: 360px 1fr; gap: 16px; }
+  .card { background: #fff; border: 1px solid #e4e6eb; border-radius: 8px; padding: 14px; }
+  .inputs label { display: block; font-size: 12px; color: #444; margin: 4px 0 2px; }
+  .inputs input, .inputs select {
+    width: 100%; padding: 5px 7px; font-size: 13px; border: 1px solid #d0d3d9;
+    border-radius: 4px; background: #fff;
+  }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .summary-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 12px; }
+  .metric { background: #fff; border: 1px solid #e4e6eb; border-radius: 8px; padding: 10px; }
+  .metric .label { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 0.4px; }
+  .metric .val { font-size: 18px; font-weight: 600; margin-top: 2px; color: #1a1a1a; }
+  .metric .sub { font-size: 11px; color: #888; margin-top: 2px; }
+  table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  th, td { padding: 4px 6px; text-align: right; border-bottom: 1px solid #eef0f2; white-space: nowrap; }
+  th { background: #f3f4f6; text-align: right; font-weight: 600; color: #333; position: sticky; top: 0; }
+  th:first-child, td:first-child { text-align: left; }
+  tr:hover td { background: #fafbfc; }
+  .table-wrap { max-height: 520px; overflow: auto; border: 1px solid #e4e6eb; border-radius: 6px; background: #fff; }
+  .strat-select { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+  .strat-select button {
+    padding: 6px 12px; border: 1px solid #d0d3d9; border-radius: 16px;
+    background: #fff; cursor: pointer; font-size: 12px;
+  }
+  .strat-select button.active { background: #2563eb; color: #fff; border-color: #2563eb; }
+  .strat-select button:hover:not(.active) { background: #f3f4f6; }
+  .chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+  .chart-card { background: #fff; border: 1px solid #e4e6eb; border-radius: 8px; padding: 12px; }
+  .chart-card canvas { max-height: 260px; }
+  .note { font-size: 11px; color: #666; padding: 6px 10px; background: #fffbea; border-left: 3px solid #f4c842; margin: 8px 0; border-radius: 3px;}
+  .good { color: #14803c; font-weight: 600; }
+  .bad { color: #a8251d; }
+  details > summary { cursor: pointer; font-size: 13px; font-weight: 600; margin: 8px 0; }
+  .bracket-fed-10 { background: #e8f5e9; }
+  .bracket-fed-12 { background: #dcf5e0; }
+  .bracket-fed-22 { background: #fff4d6; }
+  .bracket-fed-24 { background: #ffe0c2; }
+  .bracket-fed-32 { background: #ffc9b8; }
+  .bracket-fed-35 { background: #ffb3ad; }
+  .bracket-fed-37 { background: #ff9d9d; }
+</style>
+</head>
+<body>
+
+<h1>Roth Conversion Planner — NJ, MFJ</h1>
+<div class="muted">Models year-by-year taxes, balances, RMDs, and heir after-tax wealth under SECURE 10-yr rule. State tax assumed NJ. All amounts nominal unless marked. Tip: drop a <code>config.js</code> next to this file to pre-fill your own numbers.</div>
+
+<div class="layout">
+
+<!-- ============ INPUTS ============ -->
+<div class="card inputs">
+  <h2 style="margin-top:0;">Inputs</h2>
+
+  <h3>Spouses</h3>
+  <div class="row2">
+    <div><label>Spouse A birth year</label><input id="dad_birth" type="number" value="1960" /></div>
+    <div><label>Spouse B birth year</label><input id="mom_birth" type="number" value="1962" /></div>
+  </div>
+  <div class="row2">
+    <div><label>Spouse A retires end of year</label><input id="dad_retire" type="number" value="2026" /></div>
+    <div><label>Spouse B retires mid-year</label><input id="mom_retire" type="number" value="2026" /></div>
+  </div>
+  <div class="row2">
+    <div><label>Spouse A death age</label><input id="dad_death" type="number" value="90" /></div>
+    <div><label>Spouse B death age</label><input id="mom_death" type="number" value="92" /></div>
+  </div>
+
+  <h3>Earnings & Social Security</h3>
+  <div class="row2">
+    <div><label>Spouse A W-2 (while working)</label><input id="dad_wage" type="number" value="0" /></div>
+    <div><label>Spouse B W-2 (2026 partial)</label><input id="mom_wage_2026" type="number" value="0" /></div>
+  </div>
+  <div class="row2">
+    <div><label>Spouse A SS ($/yr)</label><input id="dad_ss" type="number" value="35000" /></div>
+    <div><label>Spouse B SS ($/yr)</label><input id="mom_ss" type="number" value="25000" /></div>
+  </div>
+  <div class="row2">
+    <div><label>Spouse A SS claim year</label><input id="dad_ss_year" type="number" value="2027" /></div>
+    <div><label>Spouse B SS claim year</label><input id="mom_ss_year" type="number" value="2027" /></div>
+  </div>
+
+  <h3>Balances (start of 2026)</h3>
+  <div class="row2">
+    <div><label>Spouse A Traditional IRA</label><input id="dad_ira" type="number" value="500000" /></div>
+    <div><label>Spouse B 401(k) → IRA</label><input id="mom_ira" type="number" value="500000" /></div>
+  </div>
+  <div class="row2">
+    <div><label>Taxable brokerage</label><input id="taxable" type="number" value="1500000" /></div>
+    <div><label>Existing Roth IRA</label><input id="roth" type="number" value="0" /></div>
+  </div>
+  <h3>State tax</h3>
+  <label>State tax regime</label>
+  <select id="state_tax">
+    <option value="NJ" selected>New Jersey (brackets + pension exclusion)</option>
+    <option value="none">None (FL, TX, WA, TN, NV, SD, WY, AK, NH)</option>
+  </select>
+  <div id="nj_basis_wrap">
+    <label style="margin-top:6px;">Spouse A NJ basis in IRA (unknown → $0)</label>
+    <input id="dad_nj_basis" type="number" value="0" />
+    <div class="muted" style="margin-top:2px;">NJ taxed IRA contributions when made, so a portion of each distribution is tax-free at the state level. Enter cumulative after-tax contributions if known.</div>
+  </div>
+
+  <h3>Taxable-account yields (% of balance)</h3>
+  <div class="row3">
+    <div><label>Ordinary interest %</label><input id="yld_int" type="number" step="0.1" value="1.26" /></div>
+    <div><label>Qualified div %</label><input id="yld_qdiv" type="number" step="0.1" value="0.77" /></div>
+    <div><label>Muni (tax-exempt) %</label><input id="yld_muni" type="number" step="0.1" value="0.52" /></div>
+  </div>
+
+  <h3>Returns & inflation (asset location)</h3>
+  <div class="row3">
+    <div><label>Traditional IRA return %</label><input id="ret_ira" type="number" step="0.1" value="7.5" /></div>
+    <div><label>Roth IRA return %</label><input id="ret_roth" type="number" step="0.1" value="7.5" /></div>
+    <div><label>Taxable return %</label><input id="ret_tax" type="number" step="0.1" value="6.0" /></div>
+  </div>
+  <div class="row2">
+    <div><label>Inflation %</label><input id="infl" type="number" step="0.1" value="2.5" /></div>
+    <div><label>Annual spend (post-tax, $)</label><input id="spend" type="number" value="75000" /></div>
+  </div>
+  <div class="muted" style="margin-top:4px;">Defaults: IRA and Roth both 7.5% (equity-like, no asset-location arbitrage assumed), Taxable 6% (tax-efficient balanced, drag from dividends/interest). Edit to test asset-location effect.</div>
+
+  <h3>Heirs</h3>
+  <div class="row2">
+    <div><label>Heir A share %</label><input id="heir_a_share" type="number" value="50" /></div>
+    <div><label>Heir B share %</label><input id="heir_b_share" type="number" value="50" /></div>
+  </div>
+  <div class="row2">
+    <div><label>Heir A marginal rate %</label><input id="heir_a_rate" type="number" step="0.01" value="32" /></div>
+    <div><label>Heir B marginal rate %</label><input id="heir_b_rate" type="number" step="0.01" value="24" /></div>
+  </div>
+  <div class="muted" style="margin-top:4px;">Inherited IRA distributed straight-line over 10 years per SECURE Act. Inherited Roth distributed in year 10 (tax-free). Taxable account receives step-up at 2nd death.</div>
+
+  <h3>Conversion strategy</h3>
+  <label>Strategy</label>
+  <select id="strategy">
+    <option value="none">No conversions (baseline)</option>
+    <option value="12">Fill to top of 12% federal</option>
+    <option value="22">Fill to top of 22% federal</option>
+    <option value="24half">Fill to ½-way through 24% (~$308K taxable, mid-bracket)</option>
+    <option value="24" selected>Fill to top of 24% federal</option>
+    <option value="irmaa">Stay under IRMAA MAGI cap (user-set, default $300K)</option>
+    <option value="32">Fill to top of 32% federal (aggressive)</option>
+    <option value="nj100">Stay ≤ $100K NJ income (preserve pension exclusion)</option>
+    <option value="custom">Custom $ per year</option>
+  </select>
+  <div id="custom_wrap" style="display:none; margin-top:6px;">
+    <label>Custom conversion $/yr (nominal)</label>
+    <input id="custom_amt" type="number" value="80000" />
+  </div>
+  <div id="irmaa_wrap" style="display:none; margin-top:6px;">
+    <label>IRMAA MAGI cap $/yr (2026 $, inflation-adjusted)</label>
+    <input id="irmaa_cap" type="number" value="300000" />
+    <div class="muted" style="margin-top:2px;">IRMAA MFJ 2026 tiers: ≤$212K (std) · ≤$266K (+$83/mo) · ≤$334K (+$207/mo) · ≤$400K (+$332/mo). $300K keeps you in tier 2.</div>
+  </div>
+  <div class="muted" style="margin-top:6px;">Conversions stop once both pre-tax IRAs are drained.</div>
+
+  <label style="margin-top:8px;">Conversion source allocation</label>
+  <select id="conv_source">
+    <option value="dad_first" selected>Spouse A first (burn NJ basis early)</option>
+    <option value="mom_first">Spouse B first (defensive if Spouse A dies young)</option>
+    <option value="prorata">Pro-rata by IRA balance</option>
+  </select>
+  <div class="muted" style="margin-top:4px;">Only affects conversions. RMDs always come from each spouse's own account.</div>
+
+  <button id="go" style="width:100%; padding:8px; margin-top:12px; background:#111827; color:#fff; border:none; border-radius:6px; font-weight:600; cursor:pointer;">Re-run simulation</button>
+</div>
+
+<!-- ============ RESULTS ============ -->
+<div>
+
+  <div class="strat-select" id="scenario_tabs">
+    <!-- filled by JS -->
+  </div>
+
+  <div style="margin-bottom: 10px; font-size: 12px; color: #444;">
+    Display:
+    <label style="margin-left:8px;"><input type="radio" name="disp" value="real" checked /> Real (2026 $)</label>
+    <label style="margin-left:10px;"><input type="radio" name="disp" value="nominal" /> Nominal $</label>
+    <span class="muted" style="margin-left:10px;">Affects wealth metrics and comparison table. Charts and year-by-year always nominal.</span>
+  </div>
+
+  <div class="summary-grid" id="metrics"></div>
+
+  <h2>Scenario comparison (all strategies)</h2>
+  <div class="table-wrap" style="max-height: 220px;">
+    <table id="compare_table">
+      <thead>
+        <tr>
+          <th>Strategy</th>
+          <th>Total parent tax (nom $)</th>
+          <th>Trad IRA at 2nd death</th>
+          <th>Roth at 2nd death</th>
+          <th>Taxable at 2nd death</th>
+          <th>Net at 2nd death (real)</th>
+          <th>Δ at 2nd death</th>
+          <th>Net at +10 yrs (real)</th>
+          <th>Δ at +10 yrs</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="chart-row">
+    <div class="chart-card"><h3 style="margin-top:0;">Account balances over time (selected strategy)</h3><canvas id="chart_bal"></canvas></div>
+    <div class="chart-card"><h3 style="margin-top:0;">Taxes paid per year</h3><canvas id="chart_tax"></canvas></div>
+  </div>
+
+  <div class="note" id="key_insight"></div>
+
+  <h2>Year-by-year detail (selected strategy)</h2>
+  <div class="muted">Row color = top federal bracket touched that year. Hover for details.</div>
+  <div class="table-wrap">
+    <table id="year_table">
+      <thead>
+        <tr>
+          <th>Yr</th><th>Sp A</th><th>Sp B</th><th>Status</th>
+          <th>Wages</th><th>SS tax'able</th><th>Port ord</th><th>Port qdiv</th>
+          <th>RMD</th><th>Conv</th>
+          <th>AGI</th><th>Fed tax'able</th><th>Top br</th>
+          <th>Fed tax</th><th>NJ tax</th><th>NIIT</th><th>IRMAA</th>
+          <th>Spend</th><th title="Wages + SS − total tax − spend. Positive = still saving; negative = drawing down from portfolio.">Net save</th>
+          <th title="Year-over-year change in total portfolio (Trad + Roth + Taxable). Equals net save + investment returns.">Port gain</th>
+          <th>Trad IRA end</th><th>Roth end</th><th>Taxable end</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js"></script>
+<script>
+/* =========================================================================
+   Constants — 2026 tax parameters (OBBBA made TCJA rates permanent in 2025;
+   inflation-adjusting from 2025 values). All thresholds are inflated per
+   user-set inflation rate in future years, on top of 2026 base.
+   ========================================================================= */
+
+// Federal 2026 MFJ (estimated 2.5% inflation from 2025 TCJA brackets)
+const FED_BRACKETS_MFJ_2026 = [
+  { top: 24450,  rate: 0.10 },
+  { top: 99370,  rate: 0.12 },
+  { top: 211870, rate: 0.22 },
+  { top: 404450, rate: 0.24 },
+  { top: 513600, rate: 0.32 },
+  { top: 770400, rate: 0.35 },
+  { top: Infinity, rate: 0.37 },
+];
+const FED_BRACKETS_SINGLE_2026 = [
+  { top: 12225,  rate: 0.10 },
+  { top: 49685,  rate: 0.12 },
+  { top: 105935, rate: 0.22 },
+  { top: 202225, rate: 0.24 },
+  { top: 256800, rate: 0.32 },
+  { top: 642100, rate: 0.35 },
+  { top: Infinity, rate: 0.37 },
+];
+
+const FED_STD_DED_MFJ_2026 = 30750;
+const FED_STD_DED_SINGLE_2026 = 15375;
+const FED_AGE65_EXTRA_MFJ = 1600;     // per qualifying spouse
+const FED_AGE65_EXTRA_SINGLE = 2000;
+const OBBBA_SENIOR_DED = 6000;        // per filer 65+, 2025-2028 only
+const OBBBA_PHASEOUT_START_MFJ = 150000;
+const OBBBA_PHASEOUT_START_SINGLE = 75000;
+const OBBBA_PHASEOUT_RATE = 0.06;
+const OBBBA_END_YEAR = 2028;
+
+// NJ 2026 MFJ (brackets approximately static — NJ rarely indexes)
+const NJ_BRACKETS_MFJ = [
+  { top: 20000,   rate: 0.014 },
+  { top: 50000,   rate: 0.0175 },
+  { top: 70000,   rate: 0.0245 },
+  { top: 80000,   rate: 0.035 },
+  { top: 150000,  rate: 0.05525 },
+  { top: 500000,  rate: 0.0637 },
+  { top: 1000000, rate: 0.0897 },
+  { top: Infinity, rate: 0.1075 },
+];
+const NJ_BRACKETS_SINGLE = [
+  { top: 20000,   rate: 0.014 },
+  { top: 35000,   rate: 0.0175 },
+  { top: 40000,   rate: 0.035 },
+  { top: 75000,   rate: 0.05525 },
+  { top: 500000,  rate: 0.0637 },
+  { top: 1000000, rate: 0.0897 },
+  { top: Infinity, rate: 0.1075 },
+];
+
+// NJ pension exclusion (age 62+). Cliff phaseout on NJ gross income.
+// MFJ: ≤100K = 100K excl; 100-125K = 50K; 125-150K = 25K; >150K = 0
+// Single: ≤100K = 75K excl; 100-125K = 37.5K; 125-150K = 18.75K; >150K = 0
+function njPensionExclusion(njGrossIncome, status) {
+  const base = status === 'MFJ' ? 100000 : 75000;
+  if (njGrossIncome <= 100000) return base;
+  if (njGrossIncome <= 125000) return base * 0.5;
+  if (njGrossIncome <= 150000) return base * 0.25;
+  return 0;
+}
+
+// RMD Uniform Lifetime Table
+const RMD_DIVISORS = {
+  73:26.5, 74:25.5, 75:24.6, 76:23.7, 77:22.9, 78:22.0, 79:21.1, 80:20.2,
+  81:19.4, 82:18.5, 83:17.7, 84:16.8, 85:16.0, 86:15.2, 87:14.4, 88:13.7,
+  89:12.9, 90:12.2, 91:11.5, 92:10.8, 93:10.1, 94:9.5, 95:8.9, 96:8.4, 97:7.8,
+  98:7.3, 99:6.8, 100:6.4
+};
+
+// NIIT threshold (not indexed)
+const NIIT_MFJ = 250000, NIIT_SINGLE = 200000, NIIT_RATE = 0.038;
+
+// IRMAA 2026 tiers (approximate, indexed from 2025). MFJ thresholds are 2x single.
+// Used MAGI 2 years prior; we'll compute contemporaneously and flag tier.
+const IRMAA_MFJ_TIERS = [
+  { top: 212000, surchargeMonthly: 0 },      // standard
+  { top: 266000, surchargeMonthly: 83 },
+  { top: 334000, surchargeMonthly: 207 },
+  { top: 400000, surchargeMonthly: 332 },
+  { top: 750000, surchargeMonthly: 457 },
+  { top: Infinity, surchargeMonthly: 498 },
+];
+
+// Inflate a 2026 value to target year
+function inflate(val, year, inflRate) {
+  return val * Math.pow(1 + inflRate, year - 2026);
+}
+
+/* =========================================================================
+   Tax calculators
+   ========================================================================= */
+function bracketTax(income, brackets) {
+  if (income <= 0) return 0;
+  let tax = 0, last = 0;
+  for (const b of brackets) {
+    if (income <= b.top) { tax += (income - last) * b.rate; return tax; }
+    tax += (b.top - last) * b.rate;
+    last = b.top;
+  }
+  return tax;
+}
+function topBracket(income, brackets) {
+  for (const b of brackets) if (income <= b.top) return b.rate;
+  return brackets[brackets.length - 1].rate;
+}
+
+function federalTax(taxableIncome, year, status, infl) {
+  const baseBrackets = status === 'MFJ' ? FED_BRACKETS_MFJ_2026 : FED_BRACKETS_SINGLE_2026;
+  const brackets = baseBrackets.map(b => ({
+    top: b.top === Infinity ? Infinity : inflate(b.top, year, infl),
+    rate: b.rate
+  }));
+  return { tax: bracketTax(taxableIncome, brackets), topRate: topBracket(taxableIncome, brackets), brackets };
+}
+
+// Qualified-dividend / LTCG preferential rate schedule (2026, MFJ/Single).
+// 0% up to top of 12% ordinary bracket; 15% up to ~$610K MFJ / $545K Single; 20% above.
+// Values from 2025 × 1.025 inflation.
+const LTCG_MFJ_2026 = { top0: 99370, top15: 616675 };
+const LTCG_SINGLE_2026 = { top0: 49685, top15: 547425 };
+// Stacking rule: ordinary income uses the bottom of the tax stack; qdiv/LTCG sits on top.
+// Federal tax on (ordinaryTaxable, qdivTaxable) at a combined taxable income T = ord + qdiv.
+function federalTaxSplit(ordinaryTaxable, qdivTaxable, year, status, infl) {
+  const baseBrackets = status === 'MFJ' ? FED_BRACKETS_MFJ_2026 : FED_BRACKETS_SINGLE_2026;
+  const brackets = baseBrackets.map(b => ({
+    top: b.top === Infinity ? Infinity : inflate(b.top, year, infl),
+    rate: b.rate
+  }));
+  const ordTax = bracketTax(Math.max(0, ordinaryTaxable), brackets);
+  // LTCG stacking
+  const ltcg = status === 'MFJ' ? LTCG_MFJ_2026 : LTCG_SINGLE_2026;
+  const t0 = inflate(ltcg.top0, year, infl);
+  const t15 = inflate(ltcg.top15, year, infl);
+  let qdivTax = 0;
+  const stackStart = Math.max(0, ordinaryTaxable);
+  const stackEnd = stackStart + Math.max(0, qdivTaxable);
+  // Portion in 0% band
+  const in0 = Math.max(0, Math.min(stackEnd, t0) - Math.min(stackStart, t0));
+  // Portion in 15% band
+  const in15 = Math.max(0, Math.min(stackEnd, t15) - Math.max(stackStart, t0));
+  // Portion in 20% band
+  const in20 = Math.max(0, stackEnd - Math.max(stackStart, t15));
+  qdivTax = in0 * 0 + in15 * 0.15 + in20 * 0.20;
+  const totalTaxable = stackEnd;
+  return {
+    tax: ordTax + qdivTax,
+    ordTax, qdivTax,
+    topRate: topBracket(totalTaxable, brackets),
+    brackets
+  };
+}
+
+function njTax(njTaxableIncome, status) {
+  const brackets = status === 'MFJ' ? NJ_BRACKETS_MFJ : NJ_BRACKETS_SINGLE;
+  return bracketTax(Math.max(0, njTaxableIncome), brackets);
+}
+
+// Social Security taxability (simplified — federal; NJ doesn't tax SS)
+// Provisional income = AGI (excl SS) + tax-exempt interest + 0.5 * SS
+// MFJ thresholds: $32K and $44K. Single: $25K and $34K.
+function taxableSocialSecurity(ss, otherIncome, muni, status) {
+  if (ss <= 0) return 0;
+  const t1 = status === 'MFJ' ? 32000 : 25000;
+  const t2 = status === 'MFJ' ? 44000 : 34000;
+  const prov = otherIncome + muni + 0.5 * ss;
+  if (prov <= t1) return 0;
+  if (prov <= t2) return Math.min(0.5 * (prov - t1), 0.5 * ss);
+  // Above t2:
+  const part1 = Math.min(0.5 * ss, 0.5 * (t2 - t1));
+  const part2 = 0.85 * (prov - t2);
+  return Math.min(part1 + part2, 0.85 * ss);
+}
+
+// OBBBA senior deduction (2025-2028), phases out at 6% above $150K MFJ MAGI
+function obbbaSeniorDeduction(magi, numQualifying, status, year) {
+  if (year > OBBBA_END_YEAR) return 0;
+  const base = OBBBA_SENIOR_DED * numQualifying;
+  const phaseStart = status === 'MFJ' ? OBBBA_PHASEOUT_START_MFJ : OBBBA_PHASEOUT_START_SINGLE;
+  if (magi <= phaseStart) return base;
+  const phaseout = (magi - phaseStart) * OBBBA_PHASEOUT_RATE;
+  return Math.max(0, base - phaseout);
+}
+
+// IRMAA tier lookup (uses contemporaneous MAGI as proxy)
+function irmaaTier(magi, status, year, infl) {
+  const tiers = IRMAA_MFJ_TIERS.map(t => ({ top: t.top === Infinity ? Infinity : inflate(t.top, year, infl) * (status === 'Single' ? 0.5 : 1), surchargeMonthly: t.surchargeMonthly }));
+  for (let i = 0; i < tiers.length; i++) if (magi <= tiers[i].top) return { tier: i, surcharge: tiers[i].surchargeMonthly * 12 };
+  return { tier: tiers.length - 1, surcharge: tiers[tiers.length - 1].surchargeMonthly * 12 };
+}
+
+/* =========================================================================
+   Simulation
+   ========================================================================= */
+function readInputs() {
+  const n = id => Number(document.getElementById(id).value);
+  const s = id => document.getElementById(id).value;
+  return {
+    dadBirth: n('dad_birth'), momBirth: n('mom_birth'),
+    dadRetire: n('dad_retire'), momRetire: n('mom_retire'),
+    dadDeathAge: n('dad_death'), momDeathAge: n('mom_death'),
+    dadWage: n('dad_wage'), momWage2026: n('mom_wage_2026'),
+    dadSS: n('dad_ss'), momSS: n('mom_ss'),
+    dadSSyear: n('dad_ss_year'), momSSyear: n('mom_ss_year'),
+    dadIRA: n('dad_ira'), momIRA: n('mom_ira'),
+    taxable: n('taxable'), roth: n('roth'),
+    dadNJbasis: n('dad_nj_basis'),
+    yldInt: n('yld_int')/100, yldQdiv: n('yld_qdiv')/100, yldMuni: n('yld_muni')/100,
+    retIRA: n('ret_ira')/100, retRoth: n('ret_roth')/100, retTax: n('ret_tax')/100,
+    infl: n('infl')/100, spend: n('spend'),
+    heirAShare: n('heir_a_share')/100, heirBShare: n('heir_b_share')/100,
+    heirARate: n('heir_a_rate')/100, heirBRate: n('heir_b_rate')/100,
+    strategy: s('strategy'), customAmt: n('custom_amt'),
+    irmaaCap: n('irmaa_cap'),
+    convSource: s('conv_source'),
+    stateTax: s('state_tax'),
+  };
+}
+
+function simulate(inp, strategyOverride) {
+  const strategy = strategyOverride || inp.strategy;
+  const startYear = 2026;
+  // Dad dies at end of year when his age reaches dadDeathAge. His age during year Y = Y - dadBirth.
+  const dadDeathYear = inp.dadBirth + inp.dadDeathAge;
+  const momDeathYear = inp.momBirth + inp.momDeathAge;
+  const endYear = Math.max(dadDeathYear, momDeathYear);
+
+  let dadIRA = inp.dadIRA, momIRA = inp.momIRA, roth = inp.roth, taxable = inp.taxable;
+  let dadBasis = inp.dadNJbasis, momBasis = 0;
+  const years = [];
+
+  let totalFedTax = 0, totalNJTax = 0, totalNIIT = 0, totalIRMAA = 0;
+  let totalFedTaxReal = 0, totalNJTaxReal = 0;
+
+  for (let year = startYear; year <= endYear; year++) {
+    const dadAlive = year <= dadDeathYear;
+    const momAlive = year <= momDeathYear;
+    if (!dadAlive && !momAlive) break;
+
+    // Snapshot total portfolio at start of year for gain calculation
+    const portfolioStart = dadIRA + momIRA + roth + taxable;
+
+    const dadAge = year - inp.dadBirth;
+    const momAge = year - inp.momBirth;
+    // Filing status: MFJ in year of dad's death (inclusive), Single after
+    const status = dadAlive ? 'MFJ' : 'Single';
+
+    // Income streams
+    let wages = 0;
+    if (dadAlive && year <= inp.dadRetire) wages += inp.dadWage * Math.pow(1 + inp.infl, year - startYear);
+    if (year === startYear) wages += inp.momWage2026;
+    // (No Mom wages after 2026; Dad works through end of dadRetire year)
+
+    // Social Security (nominal, COLA'd by inflation)
+    let dadSSval = 0, momSSval = 0;
+    if (dadAlive && year >= inp.dadSSyear) {
+      const partial = (year === inp.dadSSyear) ? (12 - 4) / 12 : 1; // dad claims April = 9 months first yr (if 2027)
+      const yearsFromClaim = year - inp.dadSSyear;
+      dadSSval = inp.dadSS * Math.pow(1 + inp.infl, yearsFromClaim) * partial;
+    }
+    if (year >= inp.momSSyear) {
+      const partial = (year === inp.momSSyear) ? 6 / 12 : 1; // mom claims July = 6 months first yr
+      const yearsFromClaim = year - inp.momSSyear;
+      momSSval = inp.momSS * Math.pow(1 + inp.infl, yearsFromClaim) * partial;
+    }
+    // If dad is dead, mom gets survivor benefit = max of the two (his inflated)
+    if (!dadAlive) {
+      const dadWouldGet = inp.dadSS * Math.pow(1 + inp.infl, year - inp.dadSSyear);
+      momSSval = Math.max(momSSval, dadWouldGet);
+      dadSSval = 0;
+    }
+    const totalSS = dadSSval + momSSval;
+
+    // Portfolio income on taxable balance (start-of-year balance)
+    const taxBalStart = taxable;
+    const ordInt = taxBalStart * inp.yldInt;
+    const qdiv = taxBalStart * inp.yldQdiv;
+    const muni = taxBalStart * inp.yldMuni;
+
+    // RMDs (based on prior year-end balance). Use current balance as proxy (start of year).
+    let rmdDad = 0, rmdMom = 0;
+    if (dadAlive && dadAge >= 73 && RMD_DIVISORS[dadAge]) rmdDad = dadIRA / RMD_DIVISORS[dadAge];
+    if (momAge >= 75 && RMD_DIVISORS[momAge]) rmdMom = momIRA / RMD_DIVISORS[momAge];
+    const totalRMD = rmdDad + rmdMom;
+
+    // ---- Determine conversion amount ----
+    // Federal taxable income without conversion (to find headroom):
+    const stdBase = status === 'MFJ' ? FED_STD_DED_MFJ_2026 : FED_STD_DED_SINGLE_2026;
+    const age65count = (dadAlive && dadAge >= 65 ? 1 : 0) + (momAlive && momAge >= 65 ? 1 : 0);
+    const age65extra = (status === 'MFJ' ? FED_AGE65_EXTRA_MFJ : FED_AGE65_EXTRA_SINGLE) * age65count;
+    const stdDedBase = inflate(stdBase + age65extra, year, inp.infl);
+
+    // Helper to compute federal taxable income given conversion amount
+    function compAGI(conv) {
+      const ssOther = wages + ordInt + qdiv + totalRMD + conv; // income for SS taxability (excl SS itself)
+      const ssTax = taxableSocialSecurity(totalSS, ssOther, muni, status);
+      const agi = wages + ordInt + qdiv + totalRMD + conv + ssTax;
+      // OBBBA senior deduction phases out on MAGI = AGI + tax-exempt interest (muni)
+      const magi = agi + muni;
+      const obbba = obbbaSeniorDeduction(magi, age65count, status, year);
+      const fedTaxable = Math.max(0, agi - stdDedBase - obbba);
+      return { agi, fedTaxable, ssTax, obbba };
+    }
+
+    // Bracket targets (inflation-adjusted)
+    let conversion = 0;
+    // Inherited IRAs from dead spouse have already rolled in (if applicable)
+    const maxAvailable = dadIRA + momIRA - totalRMD;
+    if (maxAvailable > 0) {
+      if (strategy === 'none') {
+        conversion = 0;
+      } else if (strategy === 'custom') {
+        conversion = Math.min(inp.customAmt, maxAvailable);
+      } else if (strategy === 'nj100') {
+        // Fill NJ income up to $100K (preserves full pension exclusion). Approximate.
+        // NJ gross excludes SS. Includes wages, taxable interest, div, IRA distributions (net of basis).
+        const njOtherNoConv = wages + ordInt + qdiv + totalRMD; // simplified (ignores pro-rata basis complexity)
+        conversion = Math.max(0, Math.min(100000 - njOtherNoConv, maxAvailable));
+      } else if (strategy === '24half') {
+        // Fill to midpoint of 24% bracket: (top of 22% + top of 24%) / 2, inflation-adjusted
+        const baseBrackets = status === 'MFJ' ? FED_BRACKETS_MFJ_2026 : FED_BRACKETS_SINGLE_2026;
+        const top22 = baseBrackets.find(b => Math.abs(b.rate - 0.22) < 1e-6).top;
+        const top24 = baseBrackets.find(b => Math.abs(b.rate - 0.24) < 1e-6).top;
+        const midTaxable = inflate((top22 + top24) / 2, year, inp.infl);
+        let c = Math.max(0, midTaxable - compAGI(0).fedTaxable);
+        for (let i = 0; i < 4; i++) {
+          const r = compAGI(c);
+          c += (midTaxable - r.fedTaxable);
+        }
+        conversion = Math.max(0, Math.min(c, maxAvailable));
+      } else if (strategy === 'irmaa') {
+        // Cap AGI at user-specified IRMAA MAGI ceiling (inflation-adjusted from 2026 $)
+        const capAGI = inflate(inp.irmaaCap || 300000, year, inp.infl);
+        let c = Math.max(0, capAGI - compAGI(0).agi);
+        for (let i = 0; i < 4; i++) {
+          const r = compAGI(c);
+          c += (capAGI - r.agi);
+        }
+        conversion = Math.max(0, Math.min(c, maxAvailable));
+      } else {
+        // Fill to top of federal bracket
+        const targetRate = Number(strategy) / 100;
+        const baseBrackets = status === 'MFJ' ? FED_BRACKETS_MFJ_2026 : FED_BRACKETS_SINGLE_2026;
+        const brk = baseBrackets.find(b => Math.abs(b.rate - targetRate) < 1e-6);
+        if (brk) {
+          const topTaxable = inflate(brk.top, year, inp.infl);
+          // Find conversion c such that fedTaxable (incl conv) = topTaxable
+          // Iterate (SS tax depends on conv through provisional income)
+          let c = Math.max(0, topTaxable - compAGI(0).fedTaxable);
+          for (let i = 0; i < 4; i++) {
+            const r = compAGI(c);
+            c += (topTaxable - r.fedTaxable);
+          }
+          conversion = Math.max(0, Math.min(c, maxAvailable));
+        }
+      }
+    }
+
+    // ---- Compute final taxes with chosen conversion ----
+    const r = compAGI(conversion);
+    const agi = r.agi, fedTaxable = r.fedTaxable, ssTax = r.ssTax;
+    // Split taxable income into ordinary vs preferential (qdiv taxed at LTCG rates).
+    // qdiv is in fedTaxable; we subtract it to isolate ordinary portion.
+    const qdivTaxable = Math.max(0, Math.min(qdiv, fedTaxable));
+    const ordinaryTaxable = Math.max(0, fedTaxable - qdivTaxable);
+    const fed = federalTaxSplit(ordinaryTaxable, qdivTaxable, year, status, inp.infl);
+    const topFedRate = fed.topRate;
+
+    // NIIT: on net investment income (ordInt + qdiv + muni-ex... actually NIIT doesn't apply to munis)
+    const netInvIncome = ordInt + qdiv; // simplistic
+    const niitThresh = status === 'MFJ' ? NIIT_MFJ : NIIT_SINGLE;
+    const niit = NIIT_RATE * Math.min(netInvIncome, Math.max(0, agi - niitThresh));
+
+    // ---- NJ tax ----
+    // Allocate conversion between Dad and Mom per user-selected policy.
+    // RMDs always come from each owner's own account.
+    let convFromDad = 0, convFromMom = 0, rmdFromDad = rmdDad, rmdFromMom = rmdMom;
+    const dadAvail = dadAlive ? Math.max(0, dadIRA - rmdDad) : 0;
+    const momAvail = Math.max(0, momIRA - rmdMom);
+    const policy = inp.convSource || 'dad_first';
+    if (policy === 'dad_first') {
+      convFromDad = Math.min(conversion, dadAvail);
+      convFromMom = Math.max(0, conversion - convFromDad);
+    } else if (policy === 'mom_first') {
+      convFromMom = Math.min(conversion, momAvail);
+      convFromDad = Math.max(0, conversion - convFromMom);
+    } else {
+      // prorata by available balance
+      const totAvail = dadAvail + momAvail;
+      if (totAvail > 0) {
+        convFromDad = conversion * (dadAvail / totAvail);
+        convFromMom = conversion * (momAvail / totAvail);
+      }
+    }
+    // NJ basis recovery: pro-rata. basis % = basis / account-balance-pre-withdrawal.
+    let dadNJExempt = 0;
+    if (dadIRA > 0 && dadBasis > 0) {
+      const pct = Math.min(1, dadBasis / dadIRA);
+      dadNJExempt = pct * (rmdFromDad + convFromDad);
+      dadBasis = Math.max(0, dadBasis - dadNJExempt);
+    }
+    // Mom's own basis = 0 (rolled 401k). After Dad's death, Mom inherits Dad's remaining basis
+    // and continues pro-rata recovery against her (now combined) IRA.
+    let momNJExempt = 0;
+    if (momIRA > 0 && momBasis > 0) {
+      const pct = Math.min(1, momBasis / momIRA);
+      momNJExempt = pct * (rmdFromMom + convFromMom);
+      momBasis = Math.max(0, momBasis - momNJExempt);
+    }
+    const njIraIncome = (rmdFromDad + convFromDad - dadNJExempt) + (rmdFromMom + convFromMom - momNJExempt);
+
+    // State tax computation. If stateTax === 'none' (FL, TX, etc.), zero out.
+    let njGross = 0, excl = 0, njTaxable = 0, njtax = 0;
+    if (inp.stateTax === 'NJ') {
+      // NJ gross income (pre-exclusion, excludes SS and muni interest)
+      njGross = wages + ordInt + qdiv + njIraIncome;
+      // Pension exclusion (both 62+): applies to IRA/RMD income and pensions
+      const exclEligible = (dadAlive && dadAge >= 62) || (momAlive && momAge >= 62);
+      excl = exclEligible ? Math.min(njIraIncome, njPensionExclusion(njGross, status)) : 0;
+      njTaxable = Math.max(0, njGross - excl);
+      njtax = njTax(njTaxable, status);
+    }
+
+    // Medicare IRMAA (age 65+ only)
+    const anyOn65 = (dadAlive && dadAge >= 65) || (momAlive && momAge >= 65);
+    let irmaa = 0, irmaaTierIdx = 0;
+    if (anyOn65) {
+      const ir = irmaaTier(agi, status, year, inp.infl);
+      irmaa = ir.surcharge * ((dadAlive && dadAge >= 65 ? 1 : 0) + (momAlive && momAge >= 65 ? 1 : 0));
+      irmaaTierIdx = ir.tier;
+    }
+
+    const totalTaxYr = fed.tax + njtax + niit + irmaa;
+
+    // ---- Update balances ----
+    // IRAs: subtract RMD and conversion, then grow at IRA return. Roth grows at Roth return (tax-free).
+    // Taxable grows at Taxable return (gross) and loses taxes/spending and gains RMD gross.
+    // Asset-location assumption: bonds in IRA (lower return), equities in Roth (higher return),
+    // tax-efficient balanced in Taxable.
+    dadIRA = Math.max(0, dadIRA - rmdFromDad - convFromDad) * (1 + inp.retIRA);
+    momIRA = Math.max(0, momIRA - rmdFromMom - convFromMom) * (1 + inp.retIRA);
+    roth = (roth + conversion) * (1 + inp.retRoth);
+
+    const spend = inp.spend * Math.pow(1 + inp.infl, year - startYear);
+    // Taxable-account yields (interest/qdiv/muni) are already realized inside the account and reinvested,
+    // so growing the full balance at retTax captures them; taxes on those yields are subtracted via totalTaxYr.
+    // Cash inflows: wages + SS (gross cash received) + RMDs (gross). Cash outflows: total taxes + living spend.
+    // Net surplus/deficit flows to/from taxable.
+    taxable = taxable * (1 + inp.retTax) + wages + totalSS + totalRMD - totalTaxYr - spend;
+
+    // End-of-year rollover: If dad died this year, transfer his IRA & basis to mom (spousal rollover)
+    if (dadAlive && year === dadDeathYear) {
+      momIRA += dadIRA;
+      // NJ basis: Mom inherits dad's remaining basis when she rolls his IRA into hers
+      momBasis += dadBasis;
+      dadIRA = 0; dadBasis = 0;
+    }
+
+    // Real-dollar conversion factors
+    const realFactor = Math.pow(1 + inp.infl, -(year - startYear));
+    totalFedTax += fed.tax; totalFedTaxReal += fed.tax * realFactor;
+    totalNJTax += njtax; totalNJTaxReal += njtax * realFactor;
+    totalNIIT += niit; totalIRMAA += irmaa;
+
+    // Net savings into the portfolio: external cash in (wages + SS) minus
+    // taxes and lifestyle spending. Positive = still accumulating;
+    // negative = drawing down from portfolio. RMDs and conversions are
+    // excluded because they're internal transfers, not new savings.
+    const netSave = wages + totalSS - totalTaxYr - spend;
+
+    // Total portfolio gain: end-of-year total − start-of-year total.
+    // Equals investment returns + netSave. Spousal rollover is a zero-sum
+    // internal transfer so it doesn't affect the total.
+    const portfolioGain = (dadIRA + momIRA + roth + taxable) - portfolioStart;
+
+    years.push({
+      year, dadAge, momAge, status,
+      wages, totalSS, ssTax, ordInt, qdiv, muni,
+      totalRMD, conversion,
+      agi, fedTaxable, topFedRate,
+      fedTax: fed.tax, njTax: njtax, niit, irmaa,
+      totalTaxYr, spend, netSave, portfolioGain,
+      dadIRA, momIRA, roth, taxable,
+      njGross, njTaxable, excl, dadBasis,
+      irmaaTier: irmaaTierIdx,
+    });
+  }
+
+  // ---- Terminal: heirs inherit at 2nd death (end of momDeathYear) ----
+  // Final balances are at END of momDeathYear. Inherited IRA → 10-yr distribution with growth.
+  const tradTotal = years[years.length - 1].momIRA + years[years.length - 1].dadIRA;
+  const rothTotal = years[years.length - 1].roth;
+  const taxableTerminal = years[years.length - 1].taxable; // steps up, tax-free
+  const deathYear = momDeathYear;
+
+  // Inherited Trad IRA: straight-line 10-year withdrawal. Balance inside inherited IRA grows at IRA return
+  // (tax-deferred). Each year's distribution is taxed at heir's marginal rate, and post-tax cash is reinvested
+  // by the heir into a taxable account that compounds at the taxable return.
+  function inheritTax(balance, heirRate) {
+    let bal = balance, tax = 0;
+    for (let i = 1; i <= 10; i++) {
+      const rem = 11 - i;
+      const wd = bal / rem;
+      tax += wd * heirRate;
+      bal = (bal - wd) * (1 + inp.retIRA);
+    }
+    return tax;
+  }
+  const heirATradShare = tradTotal * inp.heirAShare;
+  const heirBTradShare = tradTotal * inp.heirBShare;
+  const heirATax = inheritTax(heirATradShare, inp.heirARate);
+  const heirBTax = inheritTax(heirBTradShare, inp.heirBRate);
+
+  // Inherited Roth: sits untouched for 10 years (best-case), compounds tax-free at Roth return,
+  // then distributed tax-free at year 10.
+  const rothTerminal = rothTotal * Math.pow(1 + inp.retRoth, 10);
+
+  // Taxable: stepped-up at 2nd death → $0 gains. Heirs hold for 10 yrs, compounds at taxable return.
+  const taxableAt10 = taxableTerminal * Math.pow(1 + inp.retTax, 10);
+
+  // Accumulated cash from inherited-IRA distributions, reinvested by heir into taxable-like bucket.
+  function inheritNetWealth(balance, heirRate) {
+    let bal = balance, cash = 0;
+    for (let i = 1; i <= 10; i++) {
+      const rem = 11 - i;
+      const wd = bal / rem;
+      cash += wd * (1 - heirRate);
+      bal = (bal - wd) * (1 + inp.retIRA);
+      cash = cash * (1 + inp.retTax); // heirs reinvest distributions at taxable rate
+    }
+    return cash;
+  }
+  const heirATradNet = inheritNetWealth(heirATradShare, inp.heirARate);
+  const heirBTradNet = inheritNetWealth(heirBTradShare, inp.heirBRate);
+  const tradNetAt10 = heirATradNet + heirBTradNet;
+
+  const netFamilyAt10 = taxableAt10 + rothTerminal + tradNetAt10;
+  const realFactorEnd = Math.pow(1 + inp.infl, -((deathYear + 10) - startYear));
+  const netFamilyReal = netFamilyAt10 * realFactorEnd;
+
+  // ---- Alternative horizon: net family wealth AT 2nd death ----
+  // Taxable gets step-up → full face value, no tax on gains
+  // Roth → full face value (tax-free to heirs even without compounding)
+  // Trad IRA → discounted by blended heir marginal rate (what heirs net if they paid lump-sum tax today)
+  const blendedHeirRate = inp.heirAShare * inp.heirARate + inp.heirBShare * inp.heirBRate;
+  const tradNetAtDeath = tradTotal * (1 - blendedHeirRate);
+  const netFamilyAtDeathNominal = taxableTerminal + rothTotal + tradNetAtDeath;
+  const realFactorDeath = Math.pow(1 + inp.infl, -(deathYear - startYear));
+  const netFamilyAtDeathReal = netFamilyAtDeathNominal * realFactorDeath;
+
+  return {
+    years, totalFedTax, totalNJTax, totalNIIT, totalIRMAA,
+    totalFedTaxReal, totalNJTaxReal,
+    tradTotal, rothTotal, taxableTerminal,
+    heirTax: heirATax + heirBTax,
+    netFamilyNominal: netFamilyAt10,
+    netFamilyReal,
+    netFamilyAtDeathNominal,
+    netFamilyAtDeathReal,
+    tradNetAtDeath,
+    blendedHeirRate,
+    dadDeathYear, momDeathYear,
+  };
+}
+
+/* =========================================================================
+   Rendering
+   ========================================================================= */
+const fmt = (v, d=0) => {
+  if (v === null || v === undefined || isNaN(v)) return '—';
+  const sign = v < 0 ? '-' : '';
+  v = Math.abs(v);
+  if (v >= 1e6) return sign + '$' + (v/1e6).toFixed(d === 0 ? 2 : d) + 'M';
+  if (v >= 1e3) return sign + '$' + (v/1e3).toFixed(d === 0 ? 0 : d) + 'K';
+  return sign + '$' + v.toFixed(0);
+};
+const fmtFull = v => {
+  if (v === null || v === undefined || isNaN(v)) return '—';
+  return '$' + Math.round(v).toLocaleString();
+};
+const pct = r => (r*100).toFixed(0) + '%';
+
+function bracketClass(rate) {
+  const pct100 = Math.round(rate * 100);
+  return `bracket-fed-${pct100}`;
+}
+
+let chartBal, chartTax;
+let currentStrategy = '24';
+let displayMode = 'real'; // 'real' | 'nominal'
+
+function renderYearTable(sim) {
+  const tbody = document.querySelector('#year_table tbody');
+  tbody.innerHTML = '';
+  sim.years.forEach(y => {
+    const tr = document.createElement('tr');
+    tr.className = bracketClass(y.topFedRate);
+    tr.innerHTML = `
+      <td>${y.year}</td>
+      <td>${y.dadAge > 0 ? y.dadAge : '—'}</td>
+      <td>${y.momAge > 0 ? y.momAge : '—'}</td>
+      <td>${y.status}</td>
+      <td>${fmt(y.wages)}</td>
+      <td>${fmt(y.ssTax)}</td>
+      <td>${fmt(y.ordInt)}</td>
+      <td>${fmt(y.qdiv)}</td>
+      <td>${fmt(y.totalRMD)}</td>
+      <td><b>${fmt(y.conversion)}</b></td>
+      <td>${fmt(y.agi)}</td>
+      <td>${fmt(y.fedTaxable)}</td>
+      <td>${pct(y.topFedRate)}</td>
+      <td>${fmt(y.fedTax)}</td>
+      <td>${fmt(y.njTax)}</td>
+      <td>${fmt(y.niit)}</td>
+      <td>${fmt(y.irmaa)}</td>
+      <td>${fmt(y.spend)}</td>
+      <td class="${y.netSave >= 0 ? 'good' : 'bad'}">${fmt(y.netSave)}</td>
+      <td>${fmt(y.dadIRA + y.momIRA)}</td>
+      <td>${fmt(y.roth)}</td>
+      <td>${fmt(y.taxable)}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function renderCharts(sim) {
+  const labels = sim.years.map(y => y.year);
+  const bal_ira = sim.years.map(y => y.dadIRA + y.momIRA);
+  const bal_roth = sim.years.map(y => y.roth);
+  const bal_tax = sim.years.map(y => y.taxable);
+  const fedT = sim.years.map(y => y.fedTax);
+  const njT = sim.years.map(y => y.njTax);
+  const niitT = sim.years.map(y => y.niit);
+  const irmaaT = sim.years.map(y => y.irmaa);
+
+  if (chartBal) chartBal.destroy();
+  chartBal = new Chart(document.getElementById('chart_bal'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Trad IRA', data: bal_ira, borderColor: '#dc2626', backgroundColor: 'rgba(220,38,38,0.1)', fill: true, tension: 0.2 },
+        { label: 'Roth', data: bal_roth, borderColor: '#16a34a', backgroundColor: 'rgba(22,163,74,0.1)', fill: true, tension: 0.2 },
+        { label: 'Taxable', data: bal_tax, borderColor: '#2563eb', backgroundColor: 'rgba(37,99,235,0.1)', fill: true, tension: 0.2 },
+      ],
+    },
+    options: { responsive: true, maintainAspectRatio: false,
+      scales: { y: { ticks: { callback: v => '$' + (v/1e6).toFixed(1) + 'M' }}},
+      plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + fmtFull(c.parsed.y) }}}
+    }
+  });
+
+  if (chartTax) chartTax.destroy();
+  chartTax = new Chart(document.getElementById('chart_tax'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Federal', data: fedT, backgroundColor: '#2563eb' },
+        { label: 'NJ', data: njT, backgroundColor: '#16a34a' },
+        { label: 'NIIT', data: niitT, backgroundColor: '#dc2626' },
+        { label: 'IRMAA', data: irmaaT, backgroundColor: '#f59e0b' },
+      ],
+    },
+    options: { responsive: true, maintainAspectRatio: false,
+      scales: { x: { stacked: true }, y: { stacked: true, ticks: { callback: v => '$' + (v/1e3).toFixed(0) + 'K' }}},
+      plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + fmtFull(c.parsed.y) }}}
+    }
+  });
+}
+
+function renderMetrics(sim, baseline) {
+  const g = document.getElementById('metrics');
+  const tot = sim.totalFedTax + sim.totalNJTax + sim.totalNIIT + sim.totalIRMAA;
+  const isReal = displayMode === 'real';
+  const label = isReal ? 'real 2026$' : 'nominal $';
+  const netDeath = isReal ? sim.netFamilyAtDeathReal : sim.netFamilyAtDeathNominal;
+  const netP10 = isReal ? sim.netFamilyReal : sim.netFamilyNominal;
+  const baseDeath = isReal ? baseline.netFamilyAtDeathReal : baseline.netFamilyAtDeathNominal;
+  const baseP10 = isReal ? baseline.netFamilyReal : baseline.netFamilyNominal;
+  const deltaDeath = netDeath - baseDeath;
+  const delta10 = netP10 - baseP10;
+  g.innerHTML = `
+    <div class="metric"><div class="label">Parents' lifetime tax (nominal)</div><div class="val">${fmt(tot)}</div><div class="sub">Fed ${fmt(sim.totalFedTax)} · NJ ${fmt(sim.totalNJTax)} · NIIT ${fmt(sim.totalNIIT)} · IRMAA ${fmt(sim.totalIRMAA)}</div></div>
+    <div class="metric"><div class="label">Trad IRA at 2nd death</div><div class="val">${fmt(sim.tradTotal)}</div><div class="sub">Subject to 10-yr heir distribution</div></div>
+    <div class="metric"><div class="label">Roth at 2nd death</div><div class="val">${fmt(sim.rothTotal)}</div><div class="sub">Tax-free to heirs</div></div>
+    <div class="metric"><div class="label">Net at 2nd death (${label})</div><div class="val ${deltaDeath>=0?'good':'bad'}">${fmt(netDeath)}</div><div class="sub">${deltaDeath>=0?'+':''}${fmt(deltaDeath)} vs. baseline · Trad discounted ${(sim.blendedHeirRate*100).toFixed(1)}%</div></div>
+    <div class="metric"><div class="label">Net at +10 yrs (${label})</div><div class="val ${delta10>=0?'good':'bad'}">${fmt(netP10)}</div><div class="sub">${delta10>=0?'+':''}${fmt(delta10)} vs. baseline · post-SECURE distribution</div></div>
+  `;
+}
+
+function renderComparison(results, inp) {
+  const tbody = document.querySelector('#compare_table tbody');
+  tbody.innerHTML = '';
+  const baselineSim = results.find(r => r.strategy === 'none').sim;
+  const isReal = displayMode === 'real';
+  const baseline10 = isReal ? baselineSim.netFamilyReal : baselineSim.netFamilyNominal;
+  const baselineDeath = isReal ? baselineSim.netFamilyAtDeathReal : baselineSim.netFamilyAtDeathNominal;
+  // Update column headers to reflect mode
+  const thead = document.querySelector('#compare_table thead tr');
+  const modeLabel = isReal ? 'real' : 'nominal';
+  thead.cells[5].textContent = `Net at 2nd death (${modeLabel})`;
+  thead.cells[6].textContent = `Δ at 2nd death`;
+  thead.cells[7].textContent = `Net at +10 yrs (${modeLabel})`;
+  thead.cells[8].textContent = `Δ at +10 yrs`;
+  results.forEach(({strategy, label, sim}) => {
+    const tot = sim.totalFedTax + sim.totalNJTax + sim.totalNIIT + sim.totalIRMAA;
+    const netDeath = isReal ? sim.netFamilyAtDeathReal : sim.netFamilyAtDeathNominal;
+    const netP10 = isReal ? sim.netFamilyReal : sim.netFamilyNominal;
+    const delta10 = netP10 - baseline10;
+    const deltaDeath = netDeath - baselineDeath;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><b>${label}</b></td>
+      <td>${fmt(tot)}</td>
+      <td>${fmt(sim.tradTotal)}</td>
+      <td>${fmt(sim.rothTotal)}</td>
+      <td>${fmt(sim.taxableTerminal)}</td>
+      <td><b>${fmt(netDeath)}</b></td>
+      <td class="${deltaDeath>=0?'good':'bad'}">${deltaDeath>=0?'+':''}${fmt(deltaDeath)}</td>
+      <td><b>${fmt(netP10)}</b></td>
+      <td class="${delta10>=0?'good':'bad'}">${delta10>=0?'+':''}${fmt(delta10)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function renderInsight(results) {
+  // Find strategy with best real net family wealth
+  let best = results[0];
+  results.forEach(r => { if (r.sim.netFamilyReal > best.sim.netFamilyReal) best = r; });
+  const baseline = results.find(r => r.strategy === 'none');
+  const gain = best.sim.netFamilyReal - baseline.sim.netFamilyReal;
+  const el = document.getElementById('key_insight');
+  if (best.strategy === 'none' || gain <= 0) {
+    el.innerHTML = `<b>Key takeaway:</b> At current assumptions, no conversion strategy beats the baseline in real dollars. Re-check yields/returns/heir rates.`;
+  } else {
+    el.innerHTML = `<b>Key takeaway:</b> Best strategy = <b>"${best.label}"</b>, adding <b class="good">${fmt(gain)}</b> of real after-tax family wealth vs. doing nothing. Spouses pay more tax now, but heirs avoid their marginal rates on forced 10-year inherited-IRA distributions.`;
+  }
+}
+
+function run() {
+  const inp = readInputs();
+  // validate shares
+  if (Math.abs(inp.heirAShare + inp.heirBShare - 1) > 0.001) {
+    alert('Heir shares must sum to 100%'); return;
+  }
+
+  const strategies = [
+    { strategy: 'none',   label: 'No conversions (baseline)' },
+    { strategy: '12',     label: 'Fill 12% bracket' },
+    { strategy: '22',     label: 'Fill 22% bracket' },
+    { strategy: '24half', label: 'Fill ½ of 24% bracket (~$308K)' },
+    { strategy: '24',     label: 'Fill 24% bracket' },
+    { strategy: 'irmaa',  label: `IRMAA cap ($${fmt(inp.irmaaCap || 300000).replace('$','')} MAGI)` },
+    { strategy: '32',     label: 'Fill 32% bracket' },
+  ];
+  // NJ-specific strategy only makes sense when NJ tax applies
+  if (inp.stateTax === 'NJ') {
+    strategies.push({ strategy: 'nj100',  label: 'Stay ≤ $100K NJ income' });
+  }
+  if (inp.strategy === 'custom') strategies.push({ strategy: 'custom', label: `Custom $${fmt(inp.customAmt).replace('$','')}/yr`});
+
+  const results = strategies.map(s => ({...s, sim: simulate(inp, s.strategy)}));
+  renderComparison(results, inp);
+  renderInsight(results);
+
+  // Tabs
+  const tabs = document.getElementById('scenario_tabs');
+  tabs.innerHTML = '';
+  strategies.forEach(s => {
+    const b = document.createElement('button');
+    b.textContent = s.label;
+    if (s.strategy === currentStrategy) b.classList.add('active');
+    b.onclick = () => { currentStrategy = s.strategy; run(); };
+    tabs.appendChild(b);
+  });
+
+  const selected = results.find(r => r.strategy === currentStrategy) || results[0];
+  const baseline = results.find(r => r.strategy === 'none');
+  renderMetrics(selected.sim, baseline.sim);
+  renderYearTable(selected.sim);
+  renderCharts(selected.sim);
+}
+
+function updateStateTaxUI() {
+  const st = document.getElementById('state_tax').value;
+  document.getElementById('nj_basis_wrap').style.display = (st === 'NJ') ? 'block' : 'none';
+  // Hide the nj100 strategy option when no state tax applies
+  const nj100opt = document.querySelector('#strategy option[value="nj100"]');
+  if (nj100opt) nj100opt.style.display = (st === 'NJ') ? '' : 'none';
+  // If currently-selected strategy is nj100 but state flipped off, fall back to 24
+  const stratEl = document.getElementById('strategy');
+  if (st !== 'NJ' && stratEl.value === 'nj100') {
+    stratEl.value = '24';
+    currentStrategy = '24';
+  }
+}
+document.getElementById('state_tax').addEventListener('change', () => { updateStateTaxUI(); run(); });
+
+document.getElementById('strategy').addEventListener('change', e => {
+  currentStrategy = e.target.value;
+  document.getElementById('custom_wrap').style.display = e.target.value === 'custom' ? 'block' : 'none';
+  document.getElementById('irmaa_wrap').style.display = e.target.value === 'irmaa' ? 'block' : 'none';
+  run();
+});
+document.getElementById('go').addEventListener('click', run);
+document.getElementById('conv_source').addEventListener('change', run);
+Array.from(document.querySelectorAll('.inputs input')).forEach(i => i.addEventListener('change', run));
+Array.from(document.querySelectorAll('input[name="disp"]')).forEach(r => r.addEventListener('change', e => {
+  displayMode = e.target.value;
+  run();
+}));
+
+/* =========================================================================
+   Optional personal config. If config.js was loaded before this script and
+   set window.PLANNER_CONFIG = { inputId: value, ... }, apply those values to
+   the DOM inputs before the initial simulation runs. Missing keys fall back
+   to the hardcoded demo defaults.
+   ========================================================================= */
+function applyPlannerConfig() {
+  const cfg = window.PLANNER_CONFIG;
+  if (!cfg || typeof cfg !== 'object') return;
+  for (const key of Object.keys(cfg)) {
+    const el = document.getElementById(key);
+    if (!el) { console.warn('config.js: unknown input id "' + key + '"'); continue; }
+    el.value = cfg[key];
+  }
+  // Keep currentStrategy tab selection in sync with whatever config set
+  const strat = document.getElementById('strategy').value;
+  currentStrategy = strat;
+  document.getElementById('custom_wrap').style.display = strat === 'custom' ? 'block' : 'none';
+  document.getElementById('irmaa_wrap').style.display = strat === 'irmaa' ? 'block' : 'none';
+  // Sync state-tax-dependent UI (NJ basis visibility, nj100 option)
+  updateStateTaxUI();
+}
+applyPlannerConfig();
+
+// Initial render
+run();
+</script>
+</body>
+</html>
