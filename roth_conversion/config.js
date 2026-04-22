@@ -25,7 +25,7 @@ window.PLANNER_CONFIG = {
   taxable: 3250000,
   roth: 0,
   taxable_basis: 2500000,   // cost basis in taxable brokerage
-  dad_nj_basis: 30000,
+  dad_nj_basis: 175000,
 
   // Spending
   survivor_spend_pct: 80,   // spend drops to 80% after first death
