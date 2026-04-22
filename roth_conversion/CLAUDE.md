@@ -36,7 +36,7 @@ All JS is in one `<script>` block. Key functions:
 - `renderSensitivity(inp, activeStrategy)` — runs 5 return-scale scenarios (0.67× – 1.33×) and 5 sequence-of-returns scenarios (crash → boom, applied to years 0–4 only), renders a table showing net real + Δ vs no-conv for each
 - `run()` — entry point, runs all strategies, picks the user-selected one, updates DOM and all charts + the comparison + sensitivity tables
 
-Strategy is a string: `none / 12 / 22 / 24half / 24 / irmaa / 32 / nj100 / custom`.
+Strategy is a string: `none / 12 / 22 / niit / 24half / 24 / irmaa / 32 / custom`.
 
 Conversion source allocation (`conv_source`): `dad_first / mom_first / prorata` — how to split the target conversion amount between Dad's IRA and Mom's 401(k) each year before the first death.
 
@@ -115,7 +115,7 @@ When adding a new pure helper, add unit tests. When adding a new simulation inva
 
 ## State tax toggle
 
-`inp.stateTax` is a string: `'NJ'` or `'none'`. All NJ-specific computation (brackets, pension exclusion, IRA basis recovery, nj100 strategy) is gated on `inp.stateTax === 'NJ'`. When `'none'`, `njtax`, `njGross`, `njTaxable`, and `excl` are all zero and the `nj100` strategy is filtered out of the strategies list in `run()`. The NJ basis input and nj100 `<option>` are hidden via `updateStateTaxUI()`.
+`inp.stateTax` is a string: `'NJ'` or `'none'`. All NJ-specific computation (brackets, pension exclusion, IRA basis recovery) is gated on `inp.stateTax === 'NJ'`. When `'none'`, `njtax`, `njGross`, `njTaxable`, and `excl` are all zero. The NJ basis input is hidden via `updateStateTaxUI()`.
 
 If extending to other states (CA, NY, PA): add another value to the dropdown, add a state-specific bracket constant and tax function, add a new branch in the "State tax computation" block in `simulate()`, and filter strategies accordingly. Don't try to parameterize state brackets through config — states' exclusion rules are too idiosyncratic to abstract cleanly.
 

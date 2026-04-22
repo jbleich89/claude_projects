@@ -61,8 +61,8 @@ window.PLANNER_CONFIG = {
   state_tax: 'NJ',
 
   // --- Strategy defaults --------------------------------------------------
-  // Valid strategy values: 'none', '12', '22', '24half', '24', 'irmaa',
-  //                        '32', 'nj100' (NJ only), 'custom'
+  // Valid strategy values: 'none', '12', '22', 'niit', '24half', '24',
+  //                        'irmaa', '32', 'custom'
   strategy: '24',
   custom_amt: 80000,        // used only if strategy === 'custom'
   irmaa_cap: 342000,        // MAGI cap if strategy === 'irmaa' — $342K = top of 2026 MFJ tier 2

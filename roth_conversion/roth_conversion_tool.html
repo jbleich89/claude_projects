@@ -750,11 +750,11 @@
         <option value="none" selected>No conversions (baseline)</option>
         <option value="12">Fill to top of 12% federal</option>
         <option value="22">Fill to top of 22% federal</option>
+        <option value="niit">Stay under NIIT threshold ($250K MFJ / $200K Single)</option>
         <option value="24half">Fill to ½-way through 24% (~$308K taxable, mid-bracket)</option>
         <option value="24">Fill to top of 24% federal</option>
         <option value="irmaa">Stay under IRMAA MAGI cap (user-set, default $300K)</option>
         <option value="32">Fill to top of 32% federal (aggressive)</option>
-        <option value="nj100">Stay ≤ $100K NJ income (preserve pension exclusion)</option>
         <option value="custom">Custom $ per year</option>
       </select>
       <div id="custom_wrap" style="display:none; margin-top:6px;">
@@ -1197,6 +1197,37 @@ function simulate(inp, strategyOverride, returnOverrides) {
       return { agi, fedTaxable, ssTax, obbba };
     }
 
+    // Pre-compute a few values the AGI-cap solvers need.
+    // unrealizedPct and spendPreview are also used later (computed again — cheap).
+    const unrealizedPctPreview = taxable > 0 ? Math.max(0, 1 - Math.min(inp.taxBasis || 0, taxable) / taxable) : 0;
+    const spendNominalJointPreview = inp.spend * Math.pow(1 + inp.infl, year - startYear);
+    const survivorPctPreview = (inp.survivorSpendPct === undefined) ? 1 : inp.survivorSpendPct;
+    const spendPreview = (status === 'Single') ? spendNominalJointPreview * survivorPctPreview : spendNominalJointPreview;
+    const inflowsCashPreview = wages + totalSS + totalRMD;
+
+    // For strategies that cap total AGI (niit, irmaa), estimate actual AGI INCLUDING
+    // capital gains realized from taxable-account draws to cover (tax + spend − inflows).
+    // Returns predicted AGI. Uses simplified tax estimate (federal only, treats cg as
+    // ordinary for purposes of shortfall — slight overestimate, conservative).
+    function predictFullAGI(conv) {
+      const r = compAGI(conv);
+      let cg = 0, agi = r.agi;
+      for (let i = 0; i < 5; i++) {
+        agi = r.agi + cg;
+        const fedTaxableEst = Math.max(0, agi - stdDedBase - r.obbba);
+        const fedEst = federalTax(fedTaxableEst, year, status, inp.infl).tax;
+        // Rough NJ & NIIT (just for shortfall estimation — final sim uses exact)
+        const njEst = inp.stateTax === 'NJ' ? njTax(Math.max(0, agi - totalSS) * 0.85, status) : 0;
+        const niitEst = NIIT_RATE * Math.max(0, agi - (status === 'MFJ' ? NIIT_MFJ : NIIT_SINGLE));
+        const totalTaxEst = fedEst + njEst + niitEst;
+        const shortfall = Math.max(0, totalTaxEst + spendPreview - inflowsCashPreview);
+        const newCg = shortfall * unrealizedPctPreview;
+        if (Math.abs(newCg - cg) < 10) { cg = newCg; break; }
+        cg = newCg;
+      }
+      return r.agi + cg;
+    }
+
     // Bracket targets (inflation-adjusted)
     let conversion = 0;
     // Inherited IRAs from dead spouse have already rolled in (if applicable)
@@ -1206,11 +1237,6 @@ function simulate(inp, strategyOverride, returnOverrides) {
         conversion = 0;
       } else if (strategy === 'custom') {
         conversion = Math.min(inp.customAmt, maxAvailable);
-      } else if (strategy === 'nj100') {
-        // Fill NJ income up to $100K (preserves full pension exclusion). Approximate.
-        // NJ gross excludes SS. Includes wages, taxable interest, div, IRA distributions (net of basis).
-        const njOtherNoConv = wages + ordInt + qdiv + totalRMD; // simplified (ignores pro-rata basis complexity)
-        conversion = Math.max(0, Math.min(100000 - njOtherNoConv, maxAvailable));
       } else if (strategy === '24half') {
         // Fill to midpoint of 24% bracket: (top of 22% + top of 24%) / 2, inflation-adjusted
         const baseBrackets = status === 'MFJ' ? FED_BRACKETS_MFJ_2026 : FED_BRACKETS_SINGLE_2026;
@@ -1224,12 +1250,21 @@ function simulate(inp, strategyOverride, returnOverrides) {
         }
         conversion = Math.max(0, Math.min(c, maxAvailable));
       } else if (strategy === 'irmaa') {
-        // Cap AGI at user-specified IRMAA MAGI ceiling (inflation-adjusted from 2026 $)
+        // Cap FULL AGI (incl. capital gains from taxable draws) at the IRMAA MAGI
+        // ceiling (inflation-adjusted from 2026 $).
         const capAGI = inflate(inp.irmaaCap || 300000, year, inp.infl);
-        let c = Math.max(0, capAGI - compAGI(0).agi);
-        for (let i = 0; i < 4; i++) {
-          const r = compAGI(c);
-          c += (capAGI - r.agi);
+        let c = Math.max(0, capAGI - predictFullAGI(0));
+        for (let i = 0; i < 6; i++) {
+          c = Math.max(0, c + (capAGI - predictFullAGI(c)));
+        }
+        conversion = Math.max(0, Math.min(c, maxAvailable));
+      } else if (strategy === 'niit') {
+        // Cap FULL AGI at the NIIT threshold ($250K MFJ / $200K Single). Threshold
+        // is frozen in actual tax law (since 2013), so we deliberately don't inflate.
+        const capAGI = status === 'MFJ' ? NIIT_MFJ : NIIT_SINGLE;
+        let c = Math.max(0, capAGI - predictFullAGI(0));
+        for (let i = 0; i < 6; i++) {
+          c = Math.max(0, c + (capAGI - predictFullAGI(c)));
         }
         conversion = Math.max(0, Math.min(c, maxAvailable));
       } else {
@@ -1862,15 +1897,12 @@ function run() {
     { strategy: 'none',   label: 'No conversions (baseline)' },
     { strategy: '12',     label: 'Fill 12% bracket' },
     { strategy: '22',     label: 'Fill 22% bracket' },
+    { strategy: 'niit',   label: 'Stay under NIIT ($250K MFJ)' },
     { strategy: '24half', label: 'Fill ½ of 24% bracket (~$308K)' },
     { strategy: '24',     label: 'Fill 24% bracket' },
     { strategy: 'irmaa',  label: `IRMAA cap ($${fmt(inp.irmaaCap || 300000).replace('$','')} MAGI)` },
     { strategy: '32',     label: 'Fill 32% bracket' },
   ];
-  // NJ-specific strategy only makes sense when NJ tax applies
-  if (inp.stateTax === 'NJ') {
-    strategies.push({ strategy: 'nj100',  label: 'Stay ≤ $100K NJ income' });
-  }
   if (inp.strategy === 'custom') strategies.push({ strategy: 'custom', label: `Custom $${fmt(inp.customAmt).replace('$','')}/yr`});
 
   const results = strategies.map(s => ({...s, sim: simulate(inp, s.strategy)}));
@@ -1899,15 +1931,6 @@ function run() {
 function updateStateTaxUI() {
   const st = document.getElementById('state_tax').value;
   document.getElementById('nj_basis_wrap').style.display = (st === 'NJ') ? 'block' : 'none';
-  // Hide the nj100 strategy option when no state tax applies
-  const nj100opt = document.querySelector('#strategy option[value="nj100"]');
-  if (nj100opt) nj100opt.style.display = (st === 'NJ') ? '' : 'none';
-  // If currently-selected strategy is nj100 but state flipped off, fall back to 24
-  const stratEl = document.getElementById('strategy');
-  if (st !== 'NJ' && stratEl.value === 'nj100') {
-    stratEl.value = '24';
-    currentStrategy = '24';
-  }
 }
 document.getElementById('state_tax').addEventListener('change', () => { updateStateTaxUI(); run(); });
 
@@ -1944,7 +1967,7 @@ function applyPlannerConfig() {
   currentStrategy = strat;
   document.getElementById('custom_wrap').style.display = strat === 'custom' ? 'block' : 'none';
   document.getElementById('irmaa_wrap').style.display = strat === 'irmaa' ? 'block' : 'none';
-  // Sync state-tax-dependent UI (NJ basis visibility, nj100 option)
+  // Sync state-tax-dependent UI (NJ basis visibility)
   updateStateTaxUI();
 }
 applyPlannerConfig();

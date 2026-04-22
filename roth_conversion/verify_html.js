@@ -30,7 +30,7 @@ global.alert = () => {};
 const funcCode = js.split('function run()')[0];
 eval(funcCode);
 
-const strategies = ['none','12','22','24half','24','irmaa','32','nj100'];
+const strategies = ['none','12','22','24half','24','irmaa','32'];
 const policies = ['dad_first','mom_first','prorata'];
 
 function runWithPolicy(policy) {
@@ -96,8 +96,7 @@ console.log('\n--- STRESS TEST: same scenario, state_tax = none (FL) ---');
 defaults.dad_death = 90;
 defaults.state_tax = 'none';
 defaults.dad_nj_basis = 0;
-// nj100 strategy doesn't apply when there's no state tax
-const flStrategies = strategies.filter(s => s !== 'nj100');
+const flStrategies = strategies;
 const flBaseline = simulate(readInputs(), 'none');
 console.log('Strategy'.padEnd(12) + 'Net real at +10'.padEnd(20) + 'Δ vs baseline'.padEnd(18) + 'Total tax (nom)');
 for (const s of flStrategies) {

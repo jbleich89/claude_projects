@@ -30,8 +30,8 @@ Click **Run simulation**. The tool runs the chosen strategy plus the "do nothing
 - **none** — do nothing, take RMDs only
 - **12 / 22 / 24 / 32** — each year convert up to the top of that federal bracket
 - **24half** — convert up to the midpoint of the 24% bracket
+- **niit** — convert only enough to stay under the NIIT threshold ($250K MFJ / $200K Single, frozen since 2013)
 - **irmaa** — convert up to the MAGI cap you set (default $300K, avoiding the steep IRMAA cliff)
-- **nj100** — convert only enough to stay under NJ's $100K pension-exclusion MAGI cliff
 
 After the latest audit (see CLAUDE.md), the top 4 strategies (fill 22 through fill 32) are all within ~$50K of each other on a $14.6M+ outcome. The IRMAA $300K cap is the cleanest real-world choice.
 
@@ -59,8 +59,8 @@ The HTML has a `<script src="config.js">` tag near the top. If a file named `con
 
 The tool supports two state-tax regimes today, selected via the "State tax regime" dropdown in the UI or `state_tax` in config.js:
 
-- `'NJ'` — New Jersey brackets, $100K pension-exclusion cliff, and IRA-basis pro-rata recovery. The `nj100` strategy and NJ basis input appear.
-- `'none'` — no state income tax (FL, TX, WA, TN, NV, SD, WY, AK, NH). All state tax calcs are zeroed, NJ basis input hides, `nj100` strategy hides.
+- `'NJ'` — New Jersey brackets, $100K pension-exclusion cliff, and IRA-basis pro-rata recovery. The NJ basis input appears.
+- `'none'` — no state income tax (FL, TX, WA, TN, NV, SD, WY, AK, NH). All state tax calcs are zeroed, NJ basis input hides.
 
 Federal tax, NIIT, IRMAA, heir taxes, SS federal taxability, OBBBA senior deduction — all of those are computed identically in both regimes, so only the state layer changes. If your friend lives in another state with an income tax (CA, NY, etc.), treat the tool as directional only — the federal ranking still holds but absolute numbers will be off by their state's cut.
 
