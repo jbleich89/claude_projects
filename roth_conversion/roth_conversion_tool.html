@@ -370,6 +370,31 @@
   .chart-card h3 { margin-top: 0; }
   .chart-card canvas { max-height: 280px; }
 
+  /* ----- Reference bracket tables ----- */
+  table.ref-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  table.ref-table th, table.ref-table td {
+    padding: 6px 8px; text-align: right; border-bottom: 1px solid var(--border-soft);
+  }
+  table.ref-table th { color: var(--text-dim); font-weight: 600; text-transform: uppercase; font-size: 10px; letter-spacing: 0.05em; }
+  table.ref-table th:first-child, table.ref-table td:first-child { text-align: left; }
+  table.ref-table tr.ref-current td { background: rgba(129,140,248,0.09); font-weight: 600; }
+  table.ref-table tr.ref-current td:first-child { box-shadow: inset 3px 0 0 var(--indigo); }
+
+  .ref-tab {
+    background: transparent;
+    color: var(--text-dim);
+    border: none;
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border-right: 1px solid var(--border);
+    font-family: inherit;
+  }
+  .ref-tab:last-child { border-right: none; }
+  .ref-tab:hover { color: var(--text); background: var(--surface-2); }
+  .ref-tab.is-active { background: var(--indigo); color: #fff; }
+
   /* ----- Notes / callouts ----- */
   .note {
     font-size: 12px;
@@ -830,12 +855,14 @@
         <tr class="super-head">
           <th rowspan="2">Strategy</th>
           <th colspan="2">Outcome at +10 yrs</th>
-          <th colspan="2">Outcome at 2nd death</th>
+          <th colspan="4">Outcome at 2nd death</th>
           <th colspan="3">Breakdown at 2nd death</th>
         </tr>
         <tr>
           <th>Net (real)</th>
           <th>Δ vs baseline</th>
+          <th title="Trad + Roth + Taxable before heir tax on inherited trad IRA.">Gross port (real)</th>
+          <th title="Dollars lost to heir tax on inherited trad IRA over 10-yr SECURE window. Lower = better.">Heir tax drag</th>
           <th>Net (real)</th>
           <th>Δ vs baseline</th>
           <th>Trad IRA</th>
@@ -848,7 +875,7 @@
   </div>
 
   <div class="chart-row">
-    <div class="chart-card"><h3 style="margin-top:0;">Account balances over time (selected strategy)</h3><canvas id="chart_bal"></canvas></div>
+    <div class="chart-card"><h3 style="margin-top:0;">Portfolio composition over time (stacked — selected strategy)</h3><canvas id="chart_bal"></canvas></div>
     <div class="chart-card"><h3 style="margin-top:0;">Taxes paid per year</h3><canvas id="chart_tax"></canvas></div>
   </div>
 
@@ -894,10 +921,51 @@
           <th>Spend</th><th title="Wages + SS − total tax − spend. Positive = still saving; negative = drawing down from portfolio.">Net save</th>
           <th title="Year-over-year change in total portfolio (Trad + Roth + Taxable). Equals net save + investment returns.">Port gain</th>
           <th>Trad IRA end</th><th>Roth end</th><th>Taxable end</th>
+          <th title="Trad + Roth + Taxable at end of year — gross portfolio before heir tax on remaining trad IRA.">Total port</th>
         </tr>
       </thead>
       <tbody></tbody>
     </table>
+  </div>
+
+  <h2 style="margin-top:28px;">Reference: 2026 brackets</h2>
+  <div class="muted" style="margin-bottom:8px;">
+    Federal &amp; IRMAA thresholds inflate 2.5%/yr in the simulator; values shown here are the 2026 base used in year 1.
+    NJ brackets are static (NJ rarely indexes). IRMAA MFS follows special cliff rules (two tiers only).
+  </div>
+  <div style="display:flex; gap:8px; align-items:center; margin-bottom:10px; flex-wrap:wrap;">
+    <span class="muted" style="font-size:11px; text-transform:uppercase; letter-spacing:0.08em;">Filing status:</span>
+    <div id="ref_status_toggle" role="tablist" style="display:inline-flex; gap:0; border:1px solid var(--border); border-radius:8px; overflow:hidden;">
+      <button type="button" data-status="MFJ"    class="ref-tab is-active">MFJ</button>
+      <button type="button" data-status="Single" class="ref-tab">Single</button>
+      <button type="button" data-status="MFS"    class="ref-tab">MFS</button>
+    </div>
+    <span id="ref_status_note" class="muted" style="font-size:11px;"></span>
+  </div>
+
+  <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap:14px;">
+    <div class="chart-card" style="padding:14px;">
+      <h3 style="margin-top:0; margin-bottom:8px;">Federal ordinary 2026 <span id="ref_fed_status" class="muted" style="font-size:11px; font-weight:500;"></span></h3>
+      <table class="ref-table" id="ref_fed_table"><thead><tr><th>Rate</th><th>Over</th><th>But not over</th></tr></thead><tbody></tbody></table>
+      <div class="muted" style="font-size:10.5px; margin-top:6px;" id="ref_fed_note"></div>
+    </div>
+
+    <div class="chart-card" style="padding:14px;">
+      <h3 style="margin-top:0; margin-bottom:8px;">NJ income tax 2026 <span id="ref_nj_status" class="muted" style="font-size:11px; font-weight:500;"></span></h3>
+      <table class="ref-table" id="ref_nj_table"><thead><tr><th>Rate</th><th>Over</th><th>But not over</th></tr></thead><tbody></tbody></table>
+      <div class="muted" style="font-size:10.5px; margin-top:6px;" id="ref_nj_note"></div>
+    </div>
+
+    <div class="chart-card" style="padding:14px;">
+      <h3 style="margin-top:0; margin-bottom:8px;">IRMAA 2026 <span id="ref_irmaa_status" class="muted" style="font-size:11px; font-weight:500;"></span></h3>
+      <table class="ref-table" id="ref_irmaa_table">
+        <thead><tr><th>MAGI over</th><th>MAGI up to</th><th>Part B + D surcharge /mo per person</th><th>Annual /couple</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <div class="muted" style="font-size:10.5px; margin-top:6px;">
+        MAGI = AGI + tax-exempt (muni) interest. 2-year lookback in reality (2026 premium uses 2024 MAGI); simulator treats contemporaneously.
+      </div>
+    </div>
   </div>
 
 </div>
@@ -1559,6 +1627,12 @@ function simulate(inp, strategyOverride, returnOverrides) {
   const realFactorDeath = Math.pow(1 + inp.infl, -(deathYear - startYear));
   const netFamilyAtDeathReal = netFamilyAtDeathNominal * realFactorDeath;
 
+  // Gross portfolio value (pre-heir-tax) at 2nd death — trad + roth + taxable balance
+  const portfolioAtDeathNominal = tradTotal + rothTotal + taxableTerminal;
+  const portfolioAtDeathReal = portfolioAtDeathNominal * realFactorDeath;
+  // Starting portfolio (day one of sim — anchors "how much are we working with")
+  const startingPortfolio = inp.dadIRA + inp.momIRA + inp.taxable + inp.roth;
+
   return {
     years, totalFedTax, totalNJTax, totalNIIT, totalIRMAA,
     totalFedTaxReal, totalNJTaxReal,
@@ -1568,6 +1642,9 @@ function simulate(inp, strategyOverride, returnOverrides) {
     netFamilyReal,
     netFamilyAtDeathNominal,
     netFamilyAtDeathReal,
+    portfolioAtDeathNominal,
+    portfolioAtDeathReal,
+    startingPortfolio,
     tradNetAtDeath,
     blendedHeirRate,
     dadDeathYear, momDeathYear,
@@ -1607,17 +1684,21 @@ function renderYearTable(sim) {
     const isReal = displayMode === 'real';
     const netP10 = isReal ? sim.netFamilyReal : sim.netFamilyNominal;
     const netDeath = isReal ? sim.netFamilyAtDeathReal : sim.netFamilyAtDeathNominal;
+    const portDeath = isReal ? sim.portfolioAtDeathReal : sim.portfolioAtDeathNominal;
     const totTax = sim.totalFedTax + sim.totalNJTax + sim.totalNIIT + sim.totalIRMAA;
     const totConv = sim.years.reduce((s, y) => s + y.conversion, 0);
     const modeL = isReal ? 'real' : 'nominal';
-    const kpi = (label, val, color) => `
+    const kpi = (label, val, color, sub) => `
       <div style="flex:1 1 160px; min-width:140px; padding:10px 12px; border-radius:10px; background: var(--surface-2); border:1px solid var(--border-soft);">
         <div style="font-size:10px; text-transform:uppercase; letter-spacing:0.08em; color: var(--text-dim);">${label}</div>
         <div style="font-size:18px; font-weight:700; color:${color || 'var(--text)'}; margin-top:2px;">${val}</div>
+        ${sub ? `<div style="font-size:10px; color: var(--text-dim); margin-top:2px;">${sub}</div>` : ''}
       </div>`;
     summary.innerHTML =
+      kpi('Starting portfolio', fmt(sim.startingPortfolio), null, 'Trad + Roth + Taxable, day 1') +
+      kpi(`Gross portfolio at 2nd death (${modeL})`, fmt(portDeath), null, 'Before heir tax') +
+      kpi(`Net at 2nd death (${modeL})`, fmt(netDeath), null, 'After heir tax') +
       kpi(`Net at +10 yrs (${modeL})`, fmt(netP10)) +
-      kpi(`Net at 2nd death (${modeL})`, fmt(netDeath)) +
       kpi('Total parent tax (nominal)', fmt(totTax)) +
       kpi('Total lifetime conversions', fmt(totConv), 'var(--indigo)');
   }
@@ -1652,7 +1733,8 @@ function renderYearTable(sim) {
       <td class="${y.portfolioGain >= 0 ? 'good' : 'bad'}">${fmt(y.portfolioGain)}</td>
       <td>${fmt(y.dadIRA + y.momIRA)}</td>
       <td>${fmt(y.roth)}</td>
-      <td>${fmt(y.taxable)}</td>`;
+      <td>${fmt(y.taxable)}</td>
+      <td><b>${fmt(y.dadIRA + y.momIRA + y.roth + y.taxable)}</b></td>`;
     tbody.appendChild(tr);
   });
 }
@@ -1689,20 +1771,27 @@ function renderCharts(sim) {
     data: {
       labels,
       datasets: [
-        { label: 'Trad IRA', data: bal_ira, borderColor: '#f87171', backgroundColor: 'rgba(248,113,113,0.14)', fill: true, tension: 0.25, borderWidth: 2, pointRadius: 0, pointHoverRadius: 4 },
-        { label: 'Roth',     data: bal_roth, borderColor: '#34d399', backgroundColor: 'rgba(52,211,153,0.14)', fill: true, tension: 0.25, borderWidth: 2, pointRadius: 0, pointHoverRadius: 4 },
-        { label: 'Taxable',  data: bal_tax,  borderColor: '#818cf8', backgroundColor: 'rgba(129,140,248,0.18)', fill: true, tension: 0.25, borderWidth: 2, pointRadius: 0, pointHoverRadius: 4 },
+        { label: 'Trad IRA', data: bal_ira,  borderColor: '#f87171', backgroundColor: 'rgba(248,113,113,0.55)', fill: true, tension: 0.25, borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4 },
+        { label: 'Roth',     data: bal_roth, borderColor: '#34d399', backgroundColor: 'rgba(52,211,153,0.55)',  fill: true, tension: 0.25, borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4 },
+        { label: 'Taxable',  data: bal_tax,  borderColor: '#818cf8', backgroundColor: 'rgba(129,140,248,0.55)', fill: true, tension: 0.25, borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4 },
       ],
     },
     options: { responsive: true, maintainAspectRatio: false,
       interaction: { intersect: false, mode: 'index' },
       scales: {
         x: { ticks: { color: AX }, grid: { color: GRID, drawTicks: false } },
-        y: { ticks: { color: AX, callback: v => '$' + (v/1e6).toFixed(1) + 'M' }, grid: { color: GRID, drawTicks: false } }
+        y: { stacked: true, ticks: { color: AX, callback: v => '$' + (v/1e6).toFixed(1) + 'M' }, grid: { color: GRID, drawTicks: false } }
       },
       plugins: {
         legend: { position: 'bottom', labels: { color: LEGEND, usePointStyle: true, pointStyle: 'circle', boxWidth: 8, boxHeight: 8 }},
-        tooltip: { backgroundColor: TIP_BG, borderColor: TIP_BORDER, borderWidth: 1, titleColor: TIP_TEXT, bodyColor: TIP_TEXT, padding: 10, callbacks: { label: c => c.dataset.label + ': ' + fmtFull(c.parsed.y) }}
+        tooltip: { backgroundColor: TIP_BG, borderColor: TIP_BORDER, borderWidth: 1, titleColor: TIP_TEXT, bodyColor: TIP_TEXT, padding: 10, callbacks: {
+          label: c => c.dataset.label + ': ' + fmtFull(c.parsed.y),
+          footer: items => {
+            if (!items || !items.length) return '';
+            const tot = items.reduce((s, it) => s + (it.parsed.y || 0), 0);
+            return 'Total: ' + fmtFull(tot);
+          }
+        }}
       }
     }
   });
@@ -1805,8 +1894,9 @@ function renderComparison(results, inp) {
   const modeLabel = isReal ? 'real' : 'nominal';
   const subRow = document.querySelectorAll('#compare_table thead tr')[1];
   if (subRow) {
-    subRow.cells[0].textContent = `Net (${modeLabel})`;
-    subRow.cells[2].textContent = `Net (${modeLabel})`;
+    subRow.cells[0].textContent = `Net (${modeLabel})`;      // +10 Net
+    subRow.cells[2].textContent = `Gross port (${modeLabel})`; // death Gross
+    subRow.cells[4].textContent = `Net (${modeLabel})`;      // death Net
   }
 
   // Find winning strategy (max net at +10)
@@ -1838,6 +1928,8 @@ function renderComparison(results, inp) {
 
   sorted.forEach(({strategy, label, sim}) => {
     const netDeath = isReal ? sim.netFamilyAtDeathReal : sim.netFamilyAtDeathNominal;
+    const grossDeath = isReal ? sim.portfolioAtDeathReal : sim.portfolioAtDeathNominal;
+    const heirDrag = grossDeath - netDeath;   // dollars lost to heir tax in matching mode
     const netP10 = netP10Of(sim);
     const delta10 = netP10 - baseline10;
     const deltaDeath = netDeath - baselineDeath;
@@ -1858,10 +1950,15 @@ function renderComparison(results, inp) {
       const pctTxt = `<span style="opacity:0.75; font-weight:500; font-size:11px;"> (${sign}${p.toFixed(1)}%)</span>`;
       return `${sign}${fmt(d)}${pctTxt}`;
     };
+    // Heir tax drag styling: red if material, muted if negligible (aggressive convs ~ $0)
+    const dragClass = heirDrag > 50000 ? 'bad' : '';
+    const dragStyle = heirDrag < 1000 ? 'opacity:0.55;' : '';
     tr.innerHTML = `
       <td><b>${activeMark}${label}${star}</b></td>
       <td><b>${fmt(netP10)}</b></td>
       <td class="${delta10>=0?'good':'bad'}"><b>${pctStr(delta10, pct10)}</b></td>
+      <td>${fmt(grossDeath)}</td>
+      <td class="${dragClass}" style="${dragStyle}">${fmt(heirDrag)}</td>
       <td><b>${fmt(netDeath)}</b></td>
       <td class="${deltaDeath>=0?'good':'bad'}">${pctStr(deltaDeath, pctDeath)}</td>
       <td>${fmt(sim.tradTotal)}</td>
@@ -1963,6 +2060,132 @@ function renderSensitivity(inp, activeStrategy) {
   }
 }
 
+/* =========================================================================
+   Reference-bracket tables at the bottom of the page.
+   Filing-status toggle; NJ respects the state_tax input.
+   ========================================================================= */
+let refStatus = 'MFJ';
+
+function renderReferenceTables(inp, currentSimStatus) {
+  // ---- Federal ordinary brackets ----
+  // MFS: thresholds are half of MFJ (matches IRS practice for every bracket except
+  // the top 37% which diverges slightly; close enough as a reference view).
+  const fedMFJ = FED_BRACKETS_MFJ_2026;
+  const fedSingle = FED_BRACKETS_SINGLE_2026;
+  const fedMFS = fedMFJ.map(b => ({ top: b.top === Infinity ? Infinity : b.top / 2, rate: b.rate }));
+  const fedSet = refStatus === 'MFJ' ? fedMFJ : refStatus === 'Single' ? fedSingle : fedMFS;
+
+  const fedNote = refStatus === 'MFS'
+    ? 'MFS thresholds shown as MFJ ÷ 2 (IRS convention; top 37% bracket differs slightly).'
+    : '2026 base. Simulator inflates 2.5%/yr.';
+  document.getElementById('ref_fed_status').textContent = `(${refStatus})`;
+  document.getElementById('ref_fed_note').textContent = fedNote;
+  fillBracketTable('ref_fed_table', fedSet, currentSimStatus === refStatus ? inp.currentYearFedOrd : null);
+
+  // ---- NJ income tax brackets ----
+  const njWrap = document.getElementById('ref_nj_table').closest('.chart-card');
+  const stateOff = inp.stateTax === 'none';
+  if (stateOff) {
+    njWrap.style.opacity = '0.55';
+    document.getElementById('ref_nj_status').textContent = '(state = none — not used)';
+    document.querySelector('#ref_nj_table tbody').innerHTML =
+      `<tr><td colspan="3" style="text-align:center; padding:18px; color:var(--text-dim);">No state income tax (e.g., FL / TX / WA / TN / NV / SD / WY / AK / NH).</td></tr>`;
+    document.getElementById('ref_nj_note').textContent = 'Set state_tax to "NJ" in config to use NJ brackets.';
+  } else {
+    njWrap.style.opacity = '1';
+    // NJ: MFS uses the Single brackets (NJ statute).
+    const njMFJ = NJ_BRACKETS_MFJ;
+    const njSingle = NJ_BRACKETS_SINGLE;
+    const njSet = refStatus === 'MFJ' ? njMFJ : njSingle;
+    const statusLabel = refStatus === 'MFS' ? '(MFS — uses NJ Single brackets)' : `(${refStatus})`;
+    document.getElementById('ref_nj_status').textContent = statusLabel;
+    document.getElementById('ref_nj_note').textContent =
+      'NJ brackets are not inflation-indexed. Pension exclusion (age 62+): ' +
+      (refStatus === 'MFJ' ? 'up to $100K' : 'up to $75K') +
+      ' with cliff phaseout at $100K/$125K/$150K NJ gross income.';
+    fillBracketTable('ref_nj_table', njSet, null);
+  }
+
+  // ---- IRMAA tiers ----
+  // MFJ uses IRMAA_MFJ_TIERS. Single = MFJ thresholds / 2.
+  // MFS has its own special rules: two tiers only, beginning ~ same as the
+  // standard single/MFJ threshold.
+  const irmaaMFJ = IRMAA_MFJ_TIERS;
+  const irmaaSingle = IRMAA_MFJ_TIERS.map(t => ({
+    top: t.top === Infinity ? Infinity : t.top / 2,
+    surchargeMonthly: t.surchargeMonthly,
+  }));
+  // IRMAA MFS tiers — 2-tier cliff per CMS rules.
+  // 2026 estimated thresholds: ≤ $109K = standard, $109K-$394K = tier 4,
+  // > $394K = tier 5. Dollar levels tied to single/MFJ 2026 releases (indexed ~2.5%).
+  const irmaaMFS = [
+    { top: 109000,  surchargeMonthly: 0 },
+    { top: 394000,  surchargeMonthly: IRMAA_MFJ_TIERS[4].surchargeMonthly },  // tier 4 = $533.10/mo
+    { top: Infinity, surchargeMonthly: IRMAA_MFJ_TIERS[5].surchargeMonthly }, // tier 5 = $573.80/mo
+  ];
+  const irmaaSet = refStatus === 'MFJ' ? irmaaMFJ : refStatus === 'Single' ? irmaaSingle : irmaaMFS;
+  const irmaaLabel = refStatus === 'MFS' ? '(MFS — special 2-tier cliff)' : `(${refStatus})`;
+  document.getElementById('ref_irmaa_status').textContent = irmaaLabel;
+
+  const tb = document.querySelector('#ref_irmaa_table tbody');
+  tb.innerHTML = '';
+  let prev = 0;
+  irmaaSet.forEach(tier => {
+    const over = prev;
+    const upto = tier.top === Infinity ? '—' : '$' + tier.top.toLocaleString();
+    const mo = tier.surchargeMonthly;
+    const annCouple = refStatus === 'MFJ' ? mo * 12 * 2 : mo * 12;  // Single/MFS = one beneficiary typically
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>$${over.toLocaleString()}</td>
+      <td>${upto}</td>
+      <td>$${mo.toFixed(2)}</td>
+      <td>$${Math.round(annCouple).toLocaleString()}${refStatus === 'MFJ' ? '' : ' <span class="muted" style="font-size:10px;">(1 person)</span>'}</td>
+    `;
+    tb.appendChild(tr);
+    prev = tier.top === Infinity ? prev : tier.top;
+  });
+
+  // Footnote status-toggle summary
+  const noteEl = document.getElementById('ref_status_note');
+  noteEl.textContent = refStatus === currentSimStatus
+    ? 'matches current simulator filing status'
+    : `toggled to ${refStatus}; simulator is currently using ${currentSimStatus}`;
+}
+
+function fillBracketTable(tableId, brackets, _unused) {
+  // Format the rate with enough precision to be exact (e.g., NJ 5.525%),
+  // but trim trailing zeros so 10.00% renders as "10%".
+  const rateStr = r => {
+    const s = (r * 100).toFixed(3);        // 3 decimals handles NJ's 5.525
+    return s.replace(/\.?0+$/, '') + '%';   // trim trailing zeros and bare dot
+  };
+  const tb = document.querySelector('#' + tableId + ' tbody');
+  tb.innerHTML = '';
+  let prev = 0;
+  brackets.forEach(b => {
+    const over = prev;
+    const upto = b.top === Infinity ? '—' : '$' + b.top.toLocaleString();
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><b>${rateStr(b.rate)}</b></td>
+      <td>$${over.toLocaleString()}</td>
+      <td>${upto}</td>
+    `;
+    tb.appendChild(tr);
+    prev = b.top === Infinity ? prev : b.top;
+  });
+}
+
+// Wire up the reference-table filing-status toggle.
+document.querySelectorAll('#ref_status_toggle .ref-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    refStatus = btn.dataset.status;
+    document.querySelectorAll('#ref_status_toggle .ref-tab').forEach(b => b.classList.toggle('is-active', b === btn));
+    run();
+  });
+});
+
 function run() {
   const inp = readInputs();
   // validate shares
@@ -2005,6 +2228,11 @@ function run() {
   renderYearTable(selected.sim);
   renderCharts(selected.sim);
   renderSensitivity(inp, selected.strategy);
+
+  // Simulator is MFJ while both spouses alive; flips to Single in widow years.
+  // Use the current year's status for the "matches simulator" note.
+  const currSimStatus = (selected.sim.years[0] && selected.sim.years[0].status) || 'MFJ';
+  renderReferenceTables(inp, currSimStatus);
 }
 
 function updateStateTaxUI() {

@@ -20,8 +20,8 @@ window.PLANNER_CONFIG = {
   mom_ss_year: 2026,
 
   // Balances (start of 2026)
-  dad_ira: 350000,
-  mom_ira: 700000,
+  dad_ira: 400000,
+  mom_ira: 800000,
   taxable: 3250000,
   roth: 0,
   taxable_basis: 2500000,   // cost basis in taxable brokerage
@@ -52,7 +52,7 @@ window.PLANNER_CONFIG = {
   state_tax: 'NJ',
 
   // Strategy defaults
-  strategy: '24',
+  strategy: '22',
   custom_amt: 80000,
   irmaa_cap: 342000,
   conv_source: 'dad_first',
