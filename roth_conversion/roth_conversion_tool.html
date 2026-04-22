@@ -268,6 +268,27 @@
     border-bottom: 1px solid var(--border);
   }
   th:first-child, td:first-child { text-align: left; }
+  /* Freeze first column — readable while scrolling right */
+  table.sticky-col th:first-child,
+  table.sticky-col td:first-child {
+    position: sticky;
+    left: 0;
+    background: var(--surface-1);
+    z-index: 2;
+    border-right: 1px solid var(--border);
+  }
+  table.sticky-col thead th:first-child { background: var(--surface-2); z-index: 3; }
+  table.grouped-head thead tr.super-head th { border-bottom: 1px solid var(--border); color: var(--text); font-size: 11px; }
+  table.grouped-head thead tr:nth-child(2) th { top: 32px; }  /* stack second header row below first */
+  /* Active-row override needs to preserve stickiness and supply its own bg */
+  table.sticky-col tbody tr.active-row td:first-child {
+    background: linear-gradient(90deg, rgba(129,140,248,0.22), rgba(167,139,250,0.12));
+  }
+  tbody tr.active-row td { background: linear-gradient(90deg, rgba(129,140,248,0.18), rgba(167,139,250,0.10)); }
+  tbody tr.active-row td:first-child {
+    box-shadow: inset 4px 0 0 var(--indigo);
+    font-weight: 700;
+  }
   tbody tr { transition: background 80ms ease; }
   tbody tr:hover td { background: var(--surface-3); }
   .table-wrap {
@@ -750,6 +771,8 @@
         <option value="none" selected>No conversions (baseline)</option>
         <option value="12">Fill to top of 12% federal</option>
         <option value="22">Fill to top of 22% federal</option>
+        <option value="fixed100">Convert $100K/yr (fixed, nominal)</option>
+        <option value="fixed150">Convert $150K/yr (fixed, nominal)</option>
         <option value="niit">Stay under NIIT threshold ($250K MFJ / $200K Single)</option>
         <option value="24half">Fill to ½-way through 24% (~$308K taxable, mid-bracket)</option>
         <option value="24">Fill to top of 24% federal</option>
@@ -802,18 +825,22 @@
   <h2>Scenario comparison (all strategies)</h2>
   <div id="winner_ribbon" class="winner-ribbon" hidden></div>
   <div class="table-wrap" style="max-height: 220px;">
-    <table id="compare_table">
+    <table id="compare_table" class="sticky-col grouped-head">
       <thead>
+        <tr class="super-head">
+          <th rowspan="2">Strategy</th>
+          <th colspan="2">Outcome at +10 yrs</th>
+          <th colspan="2">Outcome at 2nd death</th>
+          <th colspan="3">Breakdown at 2nd death</th>
+        </tr>
         <tr>
-          <th>Strategy</th>
-          <th>Total parent tax (nom $)</th>
-          <th>Trad IRA at 2nd death</th>
-          <th>Roth at 2nd death</th>
-          <th>Taxable at 2nd death</th>
-          <th>Net at 2nd death (real)</th>
-          <th>Δ at 2nd death</th>
-          <th>Net at +10 yrs (real)</th>
-          <th>Δ at +10 yrs</th>
+          <th>Net (real)</th>
+          <th>Δ vs baseline</th>
+          <th>Net (real)</th>
+          <th>Δ vs baseline</th>
+          <th>Trad IRA</th>
+          <th>Roth</th>
+          <th>Taxable</th>
         </tr>
       </thead>
       <tbody></tbody>
@@ -830,25 +857,27 @@
   <h2>Sensitivity & stress tests (selected strategy vs baseline)</h2>
   <div class="muted" style="margin-bottom:6px;">Re-runs the selected strategy and the no-conversion baseline under scaled returns and a bad-early-returns sequence. Strategy wins only if the "Δ" column stays positive — fragile if it flips negative under stress.</div>
   <div class="table-wrap" style="max-height: 260px;">
-    <table id="sensitivity_table">
+    <table id="sensitivity_table" class="sticky-col">
       <thead>
         <tr>
           <th>Scenario</th>
-          <th>IRA/Roth ret</th>
-          <th>Taxable ret</th>
+          <th>Δ vs baseline</th>
           <th>Strategy net +10 (real)</th>
           <th>Baseline net +10 (real)</th>
-          <th>Δ vs baseline</th>
+          <th>IRA/Roth ret</th>
+          <th>Taxable ret</th>
         </tr>
       </thead>
       <tbody></tbody>
     </table>
+    <div id="sensitivity_summary" class="muted" style="padding: 10px 14px; border-top: 1px solid var(--border); background: var(--surface-2); font-size: 11.5px;"></div>
   </div>
 
   <h2>Year-by-year detail (selected strategy)</h2>
+  <div id="year_summary" class="kpi-row" style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:8px;"></div>
   <div class="muted">Row color = top federal bracket touched that year. Hover for details.</div>
   <div class="table-wrap">
-    <table id="year_table">
+    <table id="year_table" class="sticky-col">
       <thead>
         <tr>
           <th>Yr</th><th>Sp A</th><th>Sp B</th><th>Status</th>
@@ -1237,6 +1266,10 @@ function simulate(inp, strategyOverride, returnOverrides) {
         conversion = 0;
       } else if (strategy === 'custom') {
         conversion = Math.min(inp.customAmt, maxAvailable);
+      } else if (strategy === 'fixed100') {
+        conversion = Math.min(100000, maxAvailable);
+      } else if (strategy === 'fixed150') {
+        conversion = Math.min(150000, maxAvailable);
       } else if (strategy === '24half') {
         // Fill to midpoint of 24% bracket: (top of 22% + top of 24%) / 2, inflation-adjusted
         const baseBrackets = status === 'MFJ' ? FED_BRACKETS_MFJ_2026 : FED_BRACKETS_SINGLE_2026;
@@ -1568,6 +1601,26 @@ let currentStrategy = 'none';
 let displayMode = 'real'; // 'real' | 'nominal'
 
 function renderYearTable(sim) {
+  // Summary KPI strip above the table
+  const summary = document.getElementById('year_summary');
+  if (summary) {
+    const isReal = displayMode === 'real';
+    const netP10 = isReal ? sim.netFamilyReal : sim.netFamilyNominal;
+    const netDeath = isReal ? sim.netFamilyAtDeathReal : sim.netFamilyAtDeathNominal;
+    const totTax = sim.totalFedTax + sim.totalNJTax + sim.totalNIIT + sim.totalIRMAA;
+    const totConv = sim.years.reduce((s, y) => s + y.conversion, 0);
+    const modeL = isReal ? 'real' : 'nominal';
+    const kpi = (label, val, color) => `
+      <div style="flex:1 1 160px; min-width:140px; padding:10px 12px; border-radius:10px; background: var(--surface-2); border:1px solid var(--border-soft);">
+        <div style="font-size:10px; text-transform:uppercase; letter-spacing:0.08em; color: var(--text-dim);">${label}</div>
+        <div style="font-size:18px; font-weight:700; color:${color || 'var(--text)'}; margin-top:2px;">${val}</div>
+      </div>`;
+    summary.innerHTML =
+      kpi(`Net at +10 yrs (${modeL})`, fmt(netP10)) +
+      kpi(`Net at 2nd death (${modeL})`, fmt(netDeath)) +
+      kpi('Total parent tax (nominal)', fmt(totTax)) +
+      kpi('Total lifetime conversions', fmt(totConv), 'var(--indigo)');
+  }
   const tbody = document.querySelector('#year_table tbody');
   tbody.innerHTML = '';
   sim.years.forEach(y => {
@@ -1748,12 +1801,13 @@ function renderComparison(results, inp) {
   const isReal = displayMode === 'real';
   const baseline10 = isReal ? baselineSim.netFamilyReal : baselineSim.netFamilyNominal;
   const baselineDeath = isReal ? baselineSim.netFamilyAtDeathReal : baselineSim.netFamilyAtDeathNominal;
-  const thead = document.querySelector('#compare_table thead tr');
+  // Re-label the second (lower) header row based on real/nominal mode
   const modeLabel = isReal ? 'real' : 'nominal';
-  thead.cells[5].textContent = `Net at 2nd death (${modeLabel})`;
-  thead.cells[6].textContent = `Δ at 2nd death`;
-  thead.cells[7].textContent = `Net at +10 yrs (${modeLabel})`;
-  thead.cells[8].textContent = `Δ at +10 yrs`;
+  const subRow = document.querySelectorAll('#compare_table thead tr')[1];
+  if (subRow) {
+    subRow.cells[0].textContent = `Net (${modeLabel})`;
+    subRow.cells[2].textContent = `Net (${modeLabel})`;
+  }
 
   // Find winning strategy (max net at +10)
   const netP10Of = sim => isReal ? sim.netFamilyReal : sim.netFamilyNominal;
@@ -1783,7 +1837,6 @@ function renderComparison(results, inp) {
   const sorted = [...results].sort((a, b) => netP10Of(b.sim) - netP10Of(a.sim));
 
   sorted.forEach(({strategy, label, sim}) => {
-    const tot = sim.totalFedTax + sim.totalNJTax + sim.totalNIIT + sim.totalIRMAA;
     const netDeath = isReal ? sim.netFamilyAtDeathReal : sim.netFamilyAtDeathNominal;
     const netP10 = netP10Of(sim);
     const delta10 = netP10 - baseline10;
@@ -1792,23 +1845,28 @@ function renderComparison(results, inp) {
     const isActive = strategy === currentStrategy;
     const tr = document.createElement('tr');
     tr.style.cursor = 'pointer';
-    if (isActive) {
-      tr.style.background = 'linear-gradient(90deg, rgba(129,140,248,0.18), rgba(167,139,250,0.10))';
-      tr.style.boxShadow = 'inset 3px 0 0 var(--indigo)';
-    }
+    if (isActive) tr.classList.add('active-row');
     tr.title = 'Click to set as active strategy for detail view below';
     tr.onclick = () => { currentStrategy = strategy; run(); };
     const star = isWinner ? ' <span style="color:var(--amber); text-shadow:0 0 8px rgba(251,191,36,0.5);">★</span>' : '';
+    const activeMark = isActive ? ' <span style="color:var(--indigo); font-weight:700;">▶</span>' : '';
+    const pct10 = baseline10 > 0 ? (delta10 / baseline10) * 100 : 0;
+    const pctDeath = baselineDeath > 0 ? (deltaDeath / baselineDeath) * 100 : 0;
+    const pctStr = (d, p) => {
+      if (strategy === 'none') return '—';
+      const sign = d >= 0 ? '+' : '';
+      const pctTxt = `<span style="opacity:0.75; font-weight:500; font-size:11px;"> (${sign}${p.toFixed(1)}%)</span>`;
+      return `${sign}${fmt(d)}${pctTxt}`;
+    };
     tr.innerHTML = `
-      <td><b>${label}${star}</b></td>
-      <td>${fmt(tot)}</td>
+      <td><b>${activeMark}${label}${star}</b></td>
+      <td><b>${fmt(netP10)}</b></td>
+      <td class="${delta10>=0?'good':'bad'}"><b>${pctStr(delta10, pct10)}</b></td>
+      <td><b>${fmt(netDeath)}</b></td>
+      <td class="${deltaDeath>=0?'good':'bad'}">${pctStr(deltaDeath, pctDeath)}</td>
       <td>${fmt(sim.tradTotal)}</td>
       <td>${fmt(sim.rothTotal)}</td>
       <td>${fmt(sim.taxableTerminal)}</td>
-      <td><b>${fmt(netDeath)}</b></td>
-      <td class="${deltaDeath>=0?'good':'bad'}">${deltaDeath>=0?'+':''}${fmt(deltaDeath)}</td>
-      <td><b>${fmt(netP10)}</b></td>
-      <td class="${delta10>=0?'good':'bad'}">${delta10>=0?'+':''}${fmt(delta10)}</td>
     `;
     tbody.appendChild(tr);
   });
@@ -1841,23 +1899,24 @@ function renderSensitivity(inp, activeStrategy) {
     { label: 'Very high returns (1.33× baseline)',scale: 1.33 },
   ];
 
+  const allPcts = [];
   scenarios.forEach(({label, scale}) => {
     const inpCopy = {...inp, retIRA: inp.retIRA * scale, retRoth: inp.retRoth * scale, retTax: inp.retTax * scale};
     const simStrat = simulate(inpCopy, activeStrategy);
     const simBase = simulate(inpCopy, 'none');
     const delta = simStrat.netFamilyReal - simBase.netFamilyReal;
     const tr = document.createElement('tr');
-    if (scale === 1.00) {
-      tr.style.background = 'linear-gradient(90deg, rgba(129,140,248,0.18), rgba(167,139,250,0.10))';
-      tr.style.boxShadow = 'inset 3px 0 0 var(--indigo)';
-    }
+    if (scale === 1.00) tr.classList.add('active-row');
+    const pct = simBase.netFamilyReal > 0 ? (delta / simBase.netFamilyReal) * 100 : 0;
+    allPcts.push(pct);
+    const pctTxt = `<span style="opacity:0.75; font-weight:500; font-size:11px;"> (${delta>=0?'+':''}${pct.toFixed(1)}%)</span>`;
     tr.innerHTML = `
       <td>${label}</td>
-      <td>${(inpCopy.retIRA*100).toFixed(1)}%</td>
-      <td>${(inpCopy.retTax*100).toFixed(1)}%</td>
+      <td class="${delta>=0?'good':'bad'}"><b>${delta>=0?'+':''}${fmt(delta)}${pctTxt}</b></td>
       <td>${fmt(simStrat.netFamilyReal)}</td>
       <td>${fmt(simBase.netFamilyReal)}</td>
-      <td class="${delta>=0?'good':'bad'}"><b>${delta>=0?'+':''}${fmt(delta)}</b></td>
+      <td>${(inpCopy.retIRA*100).toFixed(1)}%</td>
+      <td>${(inpCopy.retTax*100).toFixed(1)}%</td>
     `;
     tbody.appendChild(tr);
   });
@@ -1875,15 +1934,33 @@ function renderSensitivity(inp, activeStrategy) {
   const deltaSeq = simStratSeq.netFamilyReal - simBaseSeq.netFamilyReal;
   const trSeq = document.createElement('tr');
   trSeq.style.borderTop = '2px solid var(--border)';
+  const pctSeq = simBaseSeq.netFamilyReal > 0 ? (deltaSeq / simBaseSeq.netFamilyReal) * 100 : 0;
+  const pctSeqTxt = `<span style="opacity:0.75; font-weight:500; font-size:11px;"> (${deltaSeq>=0?'+':''}${pctSeq.toFixed(1)}%)</span>`;
   trSeq.innerHTML = `
     <td>Bad-early-returns stress (2026–2030: −10% / −5% / 0% / +5% / +10%, then baseline)</td>
-    <td>—</td>
-    <td>—</td>
+    <td class="${deltaSeq>=0?'good':'bad'}"><b>${deltaSeq>=0?'+':''}${fmt(deltaSeq)}${pctSeqTxt}</b></td>
     <td>${fmt(simStratSeq.netFamilyReal)}</td>
     <td>${fmt(simBaseSeq.netFamilyReal)}</td>
-    <td class="${deltaSeq>=0?'good':'bad'}"><b>${deltaSeq>=0?'+':''}${fmt(deltaSeq)}</b></td>
+    <td>—</td>
+    <td>—</td>
   `;
   tbody.appendChild(trSeq);
+  allPcts.push(pctSeq);
+
+  // Robustness summary
+  const summary = document.getElementById('sensitivity_summary');
+  if (summary && allPcts.length) {
+    const minP = Math.min(...allPcts);
+    const maxP = Math.max(...allPcts);
+    const allPositive = allPcts.every(p => p > 0);
+    const robustWord = allPositive
+      ? (maxP - minP < 3 ? '<b class="good">robust</b>' : '<b class="good">positive but return-sensitive</b>')
+      : '<b class="bad">fragile</b> — flips negative under at least one scenario';
+    summary.innerHTML = `
+      <b>Robustness:</b> Δ ranges from <b>${minP >= 0 ? '+' : ''}${minP.toFixed(1)}%</b> to
+      <b>${maxP >= 0 ? '+' : ''}${maxP.toFixed(1)}%</b> across ${allPcts.length} scenarios — strategy is ${robustWord}.
+    `;
+  }
 }
 
 function run() {
@@ -1897,6 +1974,8 @@ function run() {
     { strategy: 'none',   label: 'No conversions (baseline)' },
     { strategy: '12',     label: 'Fill 12% bracket' },
     { strategy: '22',     label: 'Fill 22% bracket' },
+    { strategy: 'fixed100', label: '$100K/yr fixed (nominal)' },
+    { strategy: 'fixed150', label: '$150K/yr fixed (nominal)' },
     { strategy: 'niit',   label: 'Stay under NIIT ($250K MFJ)' },
     { strategy: '24half', label: 'Fill ½ of 24% bracket (~$308K)' },
     { strategy: '24',     label: 'Fill 24% bracket' },
@@ -1996,7 +2075,11 @@ applyPlannerConfig();
   if (!layout || !btn) return;
   let saved = null;
   try { saved = localStorage.getItem('roth_inputs_hidden'); } catch (e) {}
-  if (saved === '1') {
+  // Default to collapsed when a config.js has been loaded (planner pre-configured).
+  // Honor explicit saved preference in all cases.
+  const hasConfig = !!(window.PLANNER_CONFIG);
+  const shouldHide = saved === '1' || (saved === null && hasConfig);
+  if (shouldHide) {
     layout.classList.add('inputs-hidden');
     btn.classList.add('active');
   }

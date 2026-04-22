@@ -30,7 +30,7 @@ global.alert = () => {};
 const funcCode = js.split('function run()')[0];
 eval(funcCode);
 
-const strategies = ['none','12','22','24half','24','irmaa','32'];
+const strategies = ['none','12','22','fixed100','fixed150','24half','24','irmaa','32'];
 const policies = ['dad_first','mom_first','prorata'];
 
 function runWithPolicy(policy) {

@@ -31,7 +31,7 @@ const fail = (msg) => { console.log('FAIL: ' + msg); issues++; };
 const ok = (msg) => console.log('OK:   ' + msg);
 
 // Test 1: fedOrdTax + fedLtcgTax == fedTax for every year, every strategy
-const strategies = ['none','12','22','niit','24half','24','irmaa','32'];
+const strategies = ['none','12','22','fixed100','fixed150','niit','24half','24','irmaa','32'];
 for (const s of strategies) {
   const sim = simulate(readInputs(), s);
   let maxDiff = 0, maxYr = 0;
